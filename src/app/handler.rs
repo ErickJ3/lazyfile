@@ -2,7 +2,7 @@
 
 use super::state::{App, Panel};
 use crate::error::Result;
-use crate::ui::{CreateRemoteMode, CreateRemoteModal, ConfirmModal};
+use crate::ui::{ConfirmModal, CreateRemoteModal, CreateRemoteMode};
 use crossterm::event::{KeyCode, KeyEvent};
 use std::collections::HashMap;
 use tracing::{debug, info};
@@ -119,11 +119,7 @@ impl Handler {
             match mode {
                 CreateRemoteMode::Create => {
                     info!("Creating remote: {}", name);
-                    if let Err(e) = app
-                        .client
-                        .create_remote(&name, &remote_type, params)
-                        .await
-                    {
+                    if let Err(e) = app.client.create_remote(&name, &remote_type, params).await {
                         app.create_remote_modal = Some(CreateRemoteModal {
                             error: Some(format!("Error: {}", e)),
                             ..modal
@@ -180,7 +176,8 @@ impl Handler {
                 }
                 KeyCode::Enter => {
                     if modal.is_confirmed()
-                        && let Some(remote) = app.pending_delete_remote.take() {
+                        && let Some(remote) = app.pending_delete_remote.take()
+                    {
                         info!("Deleting remote: {}", remote);
                         app.client.delete_remote(&remote).await?;
                         app.load_remotes().await?;
@@ -219,7 +216,8 @@ impl Handler {
             }
             Panel::Files => {
                 if let Some(item) = app.files.get(app.files_selected)
-                    && item.is_dir() {
+                    && item.is_dir()
+                {
                     let name = item.name();
                     debug!("Opening directory: {}", name);
                     if app.current_path.is_empty() {

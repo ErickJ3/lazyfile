@@ -16,7 +16,11 @@ impl StatusBarWidget {
     /// * `path` - Current path within remote
     /// * `connected` - Connection status
     pub fn render(f: &mut Frame, area: Rect, remote: Option<&str>, path: &str, connected: bool) {
-        let status = if connected { "Connected" } else { "Disconnected" };
+        let status = if connected {
+            "Connected"
+        } else {
+            "Disconnected"
+        };
 
         let display_path = if let Some(r) = remote {
             if path.is_empty() {

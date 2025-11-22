@@ -18,17 +18,8 @@ impl RemoteListWidget {
     /// * `remotes` - List of remote names
     /// * `selected` - Index of selected remote
     /// * `focused` - Whether this panel is focused
-    pub fn render(
-        f: &mut Frame,
-        area: Rect,
-        remotes: &[String],
-        selected: usize,
-        focused: bool,
-    ) {
-        let items: Vec<ListItem> = remotes
-            .iter()
-            .map(|r| ListItem::new(r.as_str()))
-            .collect();
+    pub fn render(f: &mut Frame, area: Rect, remotes: &[String], selected: usize, focused: bool) {
+        let items: Vec<ListItem> = remotes.iter().map(|r| ListItem::new(r.as_str())).collect();
 
         let border_style = if focused {
             styles::focused_style()

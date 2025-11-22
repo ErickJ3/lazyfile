@@ -1,7 +1,9 @@
 //! Rclone JSON-RPC client implementation.
 
 use crate::error::{LazyFileError, Result};
-use crate::rclone::types::{FileItem, ConfigCreateRequest, ConfigUpdateRequest, ConfigDeleteRequest};
+use crate::rclone::types::{
+    ConfigCreateRequest, ConfigDeleteRequest, ConfigUpdateRequest, FileItem,
+};
 use reqwest::Client;
 use std::collections::HashMap;
 use tracing::{debug, error, trace};
@@ -36,11 +38,7 @@ impl RcloneClient {
         debug!("Listing remotes");
         let url = format!("{}/config/listremotes", self.base_url);
 
-        let response = self
-            .client
-            .post(&url)
-            .send()
-            .await?;
+        let response = self.client.post(&url).send().await?;
 
         if !response.status().is_success() {
             error!("Failed to list remotes: {}", response.status());
@@ -55,7 +53,8 @@ impl RcloneClient {
         let json: serde_json::Value = serde_json::from_str(&body)?;
 
         if let Some(remotes) = json.get("remotes")
-            && let Ok(remotes_vec) = serde_json::from_value::<Vec<String>>(remotes.clone()) {
+            && let Ok(remotes_vec) = serde_json::from_value::<Vec<String>>(remotes.clone())
+        {
             debug!("Found {} remotes", remotes_vec.len());
             return Ok(remotes_vec);
         }
@@ -106,9 +105,7 @@ impl RcloneClient {
         trace!("Response body: {}", body);
         let json: serde_json::Value = serde_json::from_str(&body)?;
 
-        if let Ok(list_response) =
-            serde_json::from_value::<super::types::ListFilesResponse>(json)
-        {
+        if let Ok(list_response) = serde_json::from_value::<super::types::ListFilesResponse>(json) {
             let items = list_response.list.unwrap_or_default();
             debug!("Found {} items", items.len());
             return Ok(items);
@@ -141,12 +138,7 @@ impl RcloneClient {
             parameters,
         };
 
-        let response = self
-            .client
-            .post(&url)
-            .json(&request)
-            .send()
-            .await?;
+        let response = self.client.post(&url).json(&request).send().await?;
 
         if !response.status().is_success() {
             error!("Failed to create remote: {}", response.status());
@@ -181,12 +173,7 @@ impl RcloneClient {
             parameters,
         };
 
-        let response = self
-            .client
-            .post(&url)
-            .json(&request)
-            .send()
-            .await?;
+        let response = self.client.post(&url).json(&request).send().await?;
 
         if !response.status().is_success() {
             error!("Failed to update remote: {}", response.status());
@@ -215,12 +202,7 @@ impl RcloneClient {
             name: name.to_string(),
         };
 
-        let response = self
-            .client
-            .post(&url)
-            .json(&request)
-            .send()
-            .await?;
+        let response = self.client.post(&url).json(&request).send().await?;
 
         if !response.status().is_success() {
             error!("Failed to delete remote: {}", response.status());

@@ -2,7 +2,7 @@
 
 use ratatui::{
     prelude::*,
-    widgets::{Block, Borders, Paragraph, Clear},
+    widgets::{Block, Borders, Clear, Paragraph},
 };
 
 /// Confirmation modal state.
@@ -81,7 +81,11 @@ impl ConfirmWidget {
 
         let chunks = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([Constraint::Min(2), Constraint::Length(2), Constraint::Length(1)])
+            .constraints([
+                Constraint::Min(2),
+                Constraint::Length(2),
+                Constraint::Length(1),
+            ])
             .split(inner);
 
         // Message
@@ -107,8 +111,12 @@ impl ConfirmWidget {
             Style::default().fg(Color::Yellow)
         };
 
-        let yes_btn = Paragraph::new(" Yes ").style(yes_style).alignment(Alignment::Center);
-        let no_btn = Paragraph::new(" No ").style(no_style).alignment(Alignment::Center);
+        let yes_btn = Paragraph::new(" Yes ")
+            .style(yes_style)
+            .alignment(Alignment::Center);
+        let no_btn = Paragraph::new(" No ")
+            .style(no_style)
+            .alignment(Alignment::Center);
 
         f.render_widget(yes_btn, button_chunks[0]);
         f.render_widget(no_btn, button_chunks[1]);
@@ -186,7 +194,10 @@ mod tests {
 
     #[test]
     fn test_string_conversion() {
-        let modal = ConfirmModal::new("Delete Remote".to_string(), "Delete 'myremote'?".to_string());
+        let modal = ConfirmModal::new(
+            "Delete Remote".to_string(),
+            "Delete 'myremote'?".to_string(),
+        );
         assert_eq!(modal.title, "Delete Remote");
         assert_eq!(modal.message, "Delete 'myremote'?");
     }

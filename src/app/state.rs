@@ -2,7 +2,7 @@
 
 use crate::error::Result;
 use crate::rclone::{NavigationItem, RcloneClient};
-use crate::ui::{CreateRemoteModal, ConfirmModal};
+use crate::ui::{ConfirmModal, CreateRemoteModal};
 use tracing::{debug, info};
 
 /// Represents the focused panel in the UI.
@@ -218,14 +218,12 @@ mod tests {
     fn test_navigate_up_files() {
         let client = create_test_client();
         let mut app = App::new(client);
-        app.files = vec![
-            NavigationItem::File(FileItem {
-                name: "file1".to_string(),
-                size: 100,
-                mod_time: "".to_string(),
-                is_dir: false,
-            }),
-        ];
+        app.files = vec![NavigationItem::File(FileItem {
+            name: "file1".to_string(),
+            size: 100,
+            mod_time: "".to_string(),
+            is_dir: false,
+        })];
         app.files_selected = 1;
         app.focused_panel = Panel::Files;
 

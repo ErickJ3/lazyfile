@@ -2,7 +2,7 @@
 
 use ratatui::{
     prelude::*,
-    widgets::{Block, Borders, Paragraph, Clear},
+    widgets::{Block, Borders, Clear, Paragraph},
 };
 
 /// Modal state for creating/editing remotes.
@@ -342,12 +342,11 @@ mod tests {
 
     #[test]
     fn test_is_valid_requires_both_fields() {
-        let modal = CreateRemoteModal::new(CreateRemoteMode::Create)
-            .with_name("myremote".to_string());
+        let modal =
+            CreateRemoteModal::new(CreateRemoteMode::Create).with_name("myremote".to_string());
         assert!(modal.is_valid());
 
-        let modal = CreateRemoteModal::new(CreateRemoteMode::Create)
-            .with_type("s3".to_string());
+        let modal = CreateRemoteModal::new(CreateRemoteMode::Create).with_type("s3".to_string());
         let mut modal = modal;
         modal.name.clear();
         assert!(!modal.is_valid());

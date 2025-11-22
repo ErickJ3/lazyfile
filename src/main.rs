@@ -62,7 +62,8 @@ async fn run_app(app: &mut App) -> error::Result<()> {
         terminal.draw(|f| ui_render(f, app))?;
 
         if crossterm::event::poll(std::time::Duration::from_millis(200))?
-            && let Event::Key(key) = event::read()? {
+            && let Event::Key(key) = event::read()?
+        {
             Handler::handle_key(app, key).await?;
         }
     }

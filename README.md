@@ -2,7 +2,8 @@
 
 A simple terminal UI for browsing and interacting with cloud storage via rclone.
 
-![Build Status](https://img.shields.io/github/actions/workflow/status/ErickJ3/lazyfile/rust.yml?branch=master)
+![Tests](https://img.shields.io/github/actions/workflow/status/ErickJ3/lazyfile/test.yml?branch=main)
+![Release](https://img.shields.io/github/actions/workflow/status/ErickJ3/lazyfile/release.yml?branch=main)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Rust](https://img.shields.io/badge/rust-1.70%2B-orange.svg)
 
@@ -134,16 +135,19 @@ The interface consists of two panels:
 With the remote list focused (press `Tab` to switch), you can manage remotes:
 
 **Add a new remote:**
+
 - Press `a` to open the create modal
 - Enter the remote name, type (e.g., `local`, `drive`, `s3`), and path/configuration
 - Press `Enter` to create or `Esc` to cancel
 
 **Edit an existing remote:**
+
 - Select a remote and press `e` to open the edit modal
 - Modify the configuration fields
 - Press `Enter` to save or `Esc` to cancel
 
 **Delete a remote:**
+
 - Select a remote and press `d` to open a confirmation dialog
 - Press `y` to confirm deletion or `n` to cancel
 
@@ -161,6 +165,7 @@ The status bar at the bottom displays:
 This typically means rclone RC requires authentication. LazyFile does not yet support authenticated RC servers.
 
 1. Ensure rclone daemon is running with `--rc-no-auth`:
+
    ```bash
    rclone rcd --rc-addr localhost:5572 --rc-no-auth
    ```
@@ -170,12 +175,15 @@ This typically means rclone RC requires authentication. LazyFile does not yet su
 3. Verify rclone has configured remotes: `rclone config file` and `rclone config show`
 
 4. Test rclone daemon manually:
+
    ```bash
    curl http://localhost:5572/config/listremotes
    ```
+
    Should return JSON with your remotes, not a 403 error.
 
 5. Run LazyFile with trace logging to see connection details:
+
    ```bash
    RUST_LOG=lazyfile=trace lazyfile
    ```
@@ -197,16 +205,19 @@ LazyFile uses structured logging with the `tracing` crate. **Logging is disabled
 Set the `RUST_LOG` environment variable to enable logging:
 
 **Debug level (recommended for troubleshooting):**
+
 ```bash
 RUST_LOG=lazyfile=debug lazyfile
 ```
 
 **Trace level (very verbose, includes network requests and detailed operations):**
+
 ```bash
 RUST_LOG=lazyfile=trace lazyfile
 ```
 
 **Specific component logging:**
+
 ```bash
 # Only log rclone client operations
 RUST_LOG=lazyfile::rclone::client=trace lazyfile
