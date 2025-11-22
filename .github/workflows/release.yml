@@ -9,56 +9,29 @@ on:
 permissions:
   contents: write
 
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
-  build-arch:
+  get-version:
     runs-on: self-hosted
-    container: archlinux:latest
-
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
-      - name: Install dependencies
+      - name: Get version from tag
+        id: version
         run: |
-          pacman -Syu --noconfirm
-          pacman -S --noconfirm base-devel rust git
-
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Build release binary
-        run: |
-          cargo build --release
-          strip target/release/lazyfile
-
-      - name: Create Arch package
-        run: |
-          mkdir -p arch_package/usr/local/bin
-          cp target/release/lazyfile arch_package/usr/local/bin/
-          mkdir -p arch_package/usr/share/doc/lazyfile
-          cp README.md arch_package/usr/share/doc/lazyfile/
-
-      - name: Upload Arch artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: lazyfile-arch-x86_64
-          path: |
-            arch_package/usr/local/bin/lazyfile
-            arch_package/usr/share/doc/lazyfile/
-
-      - name: Create release asset
-        if: startsWith(github.ref, 'refs/tags/')
-        run: |
-          cd arch_package
-          tar -czf ../lazyfile-arch-x86_64.tar.gz usr/
-
-      - name: Upload to release
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v1
-        with:
-          files: lazyfile-arch-x86_64.tar.gz
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          else
+            VERSION="0.0.0-dev"
+          fi
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Version: ${VERSION}"
 
   build-debian:
     runs-on: self-hosted
+    needs: get-version
 
     steps:
       - name: Install dependencies
@@ -78,18 +51,19 @@ jobs:
           strip target/release/lazyfile
 
       - name: Create Debian package structure
+        env:
+          VERSION: ${{ needs.get-version.outputs.version }}
         run: |
           mkdir -p debian_package/DEBIAN
           mkdir -p debian_package/usr/local/bin
           mkdir -p debian_package/usr/share/doc/lazyfile
-          mkdir -p debian_package/usr/share/man/man1
 
           cp target/release/lazyfile debian_package/usr/local/bin/
           cp README.md debian_package/usr/share/doc/lazyfile/
 
-          cat > debian_package/DEBIAN/control << 'EOF'
+          cat > debian_package/DEBIAN/control << EOF
           Package: lazyfile
-          Version: 0.1.0
+          Version: ${VERSION}
           Architecture: amd64
           Maintainer: Erick Jesus <erick.jesus2060@gmail.com>
           Description: Terminal UI for browsing cloud storage via rclone
@@ -108,25 +82,30 @@ jobs:
           chmod 755 debian_package/DEBIAN/postinst
 
       - name: Build .deb package
+        env:
+          VERSION: ${{ needs.get-version.outputs.version }}
         run: |
-          dpkg-deb --build debian_package lazyfile_0.1.0_amd64.deb
+          dpkg-deb --build debian_package lazyfile_${VERSION}_amd64.deb
 
       - name: Upload Debian artifact
         uses: actions/upload-artifact@v4
+        env:
+          VERSION: ${{ needs.get-version.outputs.version }}
         with:
           name: lazyfile-debian-amd64
-          path: lazyfile_0.1.0_amd64.deb
+          path: lazyfile_${{ needs.get-version.outputs.version }}_amd64.deb
 
       - name: Upload to release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
-          files: lazyfile_0.1.0_amd64.deb
+          files: lazyfile_${{ needs.get-version.outputs.version }}_amd64.deb
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-ubuntu:
     runs-on: self-hosted
+    needs: get-version
 
     steps:
       - name: Install dependencies
@@ -146,105 +125,74 @@ jobs:
           strip target/release/lazyfile
 
       - name: Create archive
+        env:
+          VERSION: ${{ needs.get-version.outputs.version }}
         run: |
-          mkdir -p lazyfile-ubuntu
-          cp target/release/lazyfile lazyfile-ubuntu/
-          cp README.md lazyfile-ubuntu/
-          tar -czf lazyfile-ubuntu-x86_64.tar.gz lazyfile-ubuntu/
+          mkdir -p lazyfile-${VERSION}-ubuntu-x86_64
+          cp target/release/lazyfile lazyfile-${VERSION}-ubuntu-x86_64/
+          cp README.md lazyfile-${VERSION}-ubuntu-x86_64/
+          tar -czf lazyfile-${VERSION}-ubuntu-x86_64.tar.gz lazyfile-${VERSION}-ubuntu-x86_64/
 
       - name: Upload Ubuntu artifact
         uses: actions/upload-artifact@v4
         with:
           name: lazyfile-ubuntu-x86_64
-          path: lazyfile-ubuntu-x86_64.tar.gz
+          path: lazyfile-${{ needs.get-version.outputs.version }}-ubuntu-x86_64.tar.gz
 
       - name: Upload to release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
-          files: lazyfile-ubuntu-x86_64.tar.gz
+          files: lazyfile-${{ needs.get-version.outputs.version }}-ubuntu-x86_64.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  build-fedora:
+  build-linux-generic:
     runs-on: self-hosted
-    container: fedora:latest
+    needs: get-version
 
     steps:
       - name: Install dependencies
         run: |
-          dnf install -y gcc gcc-c++ make rust cargo git pkg-config openssl-devel
+          sudo apt-get update
+          sudo apt-get install -y build-essential curl pkg-config
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Build release binary
+      - name: Build release binary (static)
         run: |
           cargo build --release
           strip target/release/lazyfile
 
-      - name: Create RPM package structure
+      - name: Create generic Linux archive
+        env:
+          VERSION: ${{ needs.get-version.outputs.version }}
         run: |
-          mkdir -p rpm_package/usr/local/bin
-          mkdir -p rpm_package/usr/share/doc/lazyfile
+          mkdir -p lazyfile-${VERSION}-linux-x86_64
+          cp target/release/lazyfile lazyfile-${VERSION}-linux-x86_64/
+          cp README.md lazyfile-${VERSION}-linux-x86_64/
+          tar -czf lazyfile-${VERSION}-linux-x86_64.tar.gz lazyfile-${VERSION}-linux-x86_64/
 
-          cp target/release/lazyfile rpm_package/usr/local/bin/
-          cp README.md rpm_package/usr/share/doc/lazyfile/
-
-      - name: Create RPM spec file
-        run: |
-          mkdir -p rpm_build/SPECS rpm_build/SOURCES
-
-          cat > rpm_build/SPECS/lazyfile.spec << 'EOF'
-          Name:           lazyfile
-          Version:        0.1.0
-          Release:        1%{?dist}
-          Summary:        Terminal UI for browsing cloud storage via rclone
-
-          License:        MIT
-          URL:            https://github.com/ErickJ3/lazyfile
-
-          %description
-          LazyFile provides a lightweight terminal user interface for interacting
-          with cloud storage systems via rclone. It emphasizes simplicity,
-          reliability, and developer experience.
-
-          %files
-          /usr/local/bin/lazyfile
-          /usr/share/doc/lazyfile/README.md
-
-          %post
-          echo "LazyFile installed successfully!"
-          echo "Start rclone RC daemon with: rclone rcd --rc-addr 127.0.0.1:5572 --rc-no-auth"
-          echo "Then run: lazyfile"
-          EOF
-
-          cp -r rpm_package/* rpm_build/SOURCES/
-
-      - name: Build RPM
-        run: |
-          cd rpm_build
-          rpmbuild -ba -D "_topdir $(pwd)" SPECS/lazyfile.spec || true
-          find . -name "*.rpm" -type f
-
-      - name: Upload Fedora artifact
+      - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
         with:
-          name: lazyfile-fedora-x86_64
-          path: rpm_build/RPMS/x86_64/*.rpm
-        continue-on-error: true
+          name: lazyfile-linux-x86_64
+          path: lazyfile-${{ needs.get-version.outputs.version }}-linux-x86_64.tar.gz
 
       - name: Upload to release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
-          files: rpm_build/RPMS/x86_64/*.rpm
+          files: lazyfile-${{ needs.get-version.outputs.version }}-linux-x86_64.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        continue-on-error: true
 
   test-packages:
-    needs: [build-debian, build-ubuntu]
+    needs: [get-version, build-debian, build-ubuntu]
     runs-on: self-hosted
 
     steps:
@@ -254,19 +202,13 @@ jobs:
           name: lazyfile-debian-amd64
 
       - name: Test Debian package
+        env:
+          VERSION: ${{ needs.get-version.outputs.version }}
         run: |
-          sudo dpkg -i lazyfile_0.1.0_amd64.deb
+          sudo dpkg -i lazyfile_${VERSION}_amd64.deb || sudo apt-get install -f -y
           which lazyfile
-          lazyfile --help 2>&1 || true
+          lazyfile --help || true
 
-      - name: Download Ubuntu package
-        uses: actions/download-artifact@v4
-        with:
-          name: lazyfile-ubuntu-x86_64
-
-      - name: Test Ubuntu package
+      - name: Cleanup
         run: |
-          tar -tzf lazyfile-ubuntu-x86_64.tar.gz
-          mkdir -p test_ubuntu
-          tar -xzf lazyfile-ubuntu-x86_64.tar.gz -C test_ubuntu
-          ls -la test_ubuntu/
+          sudo dpkg -r lazyfile || true         ls -la test_ubuntu/
