@@ -103,14 +103,28 @@ lazyfile
 
 ### Configuration
 
-If you need to use a different host or port, edit the configuration in `src/config/mod.rs`:
+By default, LazyFile connects to `localhost:5572`. If your rclone daemon is running on a different host or port, you can specify it via command-line arguments:
 
-```rust
-pub const RCLONE_HOST: &str = "localhost";
-pub const RCLONE_PORT: u16 = 5572;
+```bash
+lazyfile --host localhost --port 8080
 ```
 
-Then rebuild the application with `cargo build --release`.
+**Available options:**
+
+- `--host` - Specify the rclone daemon host (default: `localhost`)
+- `--port` - Specify the rclone daemon port (default: `5572`)
+
+**Example: Remote rclone daemon**
+
+If you have rclone running on a remote server:
+
+```bash
+# Start rclone daemon on the remote server
+ssh user@remote-server "rclone rcd --rc-addr 0.0.0.0:5572 --rc-no-auth"
+
+# Connect from your local machine
+lazyfile --host remote-server --port 5572
+```
 
 ## Usage
 
