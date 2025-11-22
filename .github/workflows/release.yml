@@ -173,7 +173,7 @@ jobs:
     steps:
       - name: Install dependencies
         run: |
-          dnf install -y gcc gcc-c++ make rust cargo git pkg-config
+          dnf install -y gcc gcc-c++ make rust cargo git pkg-config openssl-devel
 
       - name: Checkout code
         uses: actions/checkout@v4
