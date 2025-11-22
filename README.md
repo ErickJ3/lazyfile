@@ -7,8 +7,6 @@ A simple terminal UI for browsing and interacting with cloud storage via rclone.
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Rust](https://img.shields.io/badge/rust-1.70%2B-orange.svg)
 
-
-
 ![LazyFile Screenshot](./scrshot.png)
 
 ## Table of Contents
@@ -43,8 +41,8 @@ The project is built in Rust using ratatui for the terminal interface and rclone
 
 **Keybindings:**
 
-- `j` or `↑` - Navigate up
-- `k` or `↓` - Navigate down
+- `k` or `↑` - Navigate up
+- `j` or `↓` - Navigate down
 - `Enter` - Open remote or directory
 - `Backspace` - Go back to parent directory or remotes list
 - `Tab` - Switch focus between panels
