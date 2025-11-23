@@ -1,8 +1,9 @@
 //! Application state management.
 
+use crate::auth::AuthManager;
 use crate::error::Result;
 use crate::rclone::{NavigationItem, RcloneClient};
-use crate::ui::{ConfirmModal, CreateRemoteModal};
+use crate::ui::{ConfirmModal, CreateRemoteModal, LoginModal};
 use tracing::{debug, info};
 
 /// Represents the focused panel in the UI.
@@ -19,6 +20,8 @@ pub enum Panel {
 pub struct App {
     /// RcloneClient for API communication.
     pub client: RcloneClient,
+    /// Authentication manager.
+    pub auth_manager: AuthManager,
     /// List of configured remotes.
     pub remotes: Vec<String>,
     /// Currently selected remote.
@@ -41,13 +44,16 @@ pub struct App {
     pub confirm_modal: Option<ConfirmModal>,
     /// Remote name being deleted (used for confirmation).
     pub pending_delete_remote: Option<String>,
+    /// Login modal for authentication.
+    pub login_modal: Option<LoginModal>,
 }
 
 impl App {
     /// Create a new App instance.
-    pub fn new(client: RcloneClient) -> Self {
+    pub fn new(client: RcloneClient, auth_manager: AuthManager) -> Self {
         Self {
             client,
+            auth_manager,
             remotes: Vec::new(),
             current_remote: None,
             current_path: String::new(),
@@ -59,6 +65,7 @@ impl App {
             create_remote_modal: None,
             confirm_modal: None,
             pending_delete_remote: None,
+            login_modal: None,
         }
     }
 
@@ -143,10 +150,16 @@ mod tests {
         RcloneClient::new("localhost", 5572)
     }
 
+    fn create_test_auth_manager() -> crate::auth::AuthManager {
+        use crate::auth::AuthManager;
+        AuthManager::new(crate::auth::AuthMode::RequireOnStartup)
+    }
+
     #[test]
     fn test_app_new() {
         let client = create_test_client();
-        let app = App::new(client);
+        let auth_manager = create_test_auth_manager();
+        let app = App::new(client, auth_manager);
 
         assert!(app.remotes.is_empty());
         assert!(app.current_remote.is_none());
@@ -164,7 +177,8 @@ mod tests {
     #[test]
     fn test_navigate_down_remotes() {
         let client = create_test_client();
-        let mut app = App::new(client);
+        let auth_manager = create_test_auth_manager();
+        let mut app = App::new(client, auth_manager);
         app.remotes = vec!["remote1".to_string(), "remote2".to_string()];
         app.focused_panel = Panel::Remotes;
 
@@ -178,7 +192,8 @@ mod tests {
     #[test]
     fn test_navigate_down_files() {
         let client = create_test_client();
-        let mut app = App::new(client);
+        let auth_manager = create_test_auth_manager();
+        let mut app = App::new(client, auth_manager);
         app.files = vec![
             NavigationItem::File(FileItem {
                 name: "file1".to_string(),
@@ -202,7 +217,8 @@ mod tests {
     #[test]
     fn test_navigate_up_remotes() {
         let client = create_test_client();
-        let mut app = App::new(client);
+        let auth_manager = create_test_auth_manager();
+        let mut app = App::new(client, auth_manager);
         app.remotes = vec!["remote1".to_string(), "remote2".to_string()];
         app.remotes_selected = 1;
         app.focused_panel = Panel::Remotes;
@@ -217,7 +233,8 @@ mod tests {
     #[test]
     fn test_navigate_up_files() {
         let client = create_test_client();
-        let mut app = App::new(client);
+        let auth_manager = create_test_auth_manager();
+        let mut app = App::new(client, auth_manager);
         app.files = vec![NavigationItem::File(FileItem {
             name: "file1".to_string(),
             size: 100,
@@ -234,7 +251,8 @@ mod tests {
     #[test]
     fn test_switch_panel_to_files() {
         let client = create_test_client();
-        let mut app = App::new(client);
+        let auth_manager = create_test_auth_manager();
+        let mut app = App::new(client, auth_manager);
         assert_eq!(app.focused_panel, Panel::Remotes);
 
         app.switch_panel();
@@ -244,7 +262,8 @@ mod tests {
     #[test]
     fn test_switch_panel_to_remotes() {
         let client = create_test_client();
-        let mut app = App::new(client);
+        let auth_manager = create_test_auth_manager();
+        let mut app = App::new(client, auth_manager);
         app.focused_panel = Panel::Files;
 
         app.switch_panel();
@@ -254,7 +273,8 @@ mod tests {
     #[test]
     fn test_switch_panel_multiple_times() {
         let client = create_test_client();
-        let mut app = App::new(client);
+        let auth_manager = create_test_auth_manager();
+        let mut app = App::new(client, auth_manager);
 
         for _ in 0..4 {
             assert_eq!(app.focused_panel, Panel::Remotes);

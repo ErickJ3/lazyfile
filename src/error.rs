@@ -35,6 +35,19 @@ pub enum LazyFileError {
     #[error("Tracing filter error: {0}")]
     TracingFilter(String),
 
+    /// Authentication error.
+    #[error("Authentication error: {0}")]
+    #[allow(dead_code)]
+    Auth(String),
+
+    /// Keyring error.
+    #[error("Keyring error: {0}")]
+    Keyring(String),
+
+    /// Unauthorized (401) error.
+    #[error("Unauthorized: authentication required")]
+    Unauthorized,
+
     /// Generic error (reserved for future use).
     #[error("{0}")]
     #[allow(dead_code)]

@@ -1,5 +1,6 @@
 //! Rclone JSON-RPC client implementation.
 
+use crate::auth::Credentials;
 use crate::error::{LazyFileError, Result};
 use crate::rclone::types::{
     ConfigCreateRequest, ConfigDeleteRequest, ConfigUpdateRequest, FileItem,
@@ -13,6 +14,7 @@ use tracing::{debug, error, trace};
 pub struct RcloneClient {
     base_url: String,
     client: Client,
+    credentials: Option<Credentials>,
 }
 
 impl RcloneClient {
@@ -27,6 +29,34 @@ impl RcloneClient {
         Self {
             base_url,
             client: Client::new(),
+            credentials: None,
+        }
+    }
+
+    /// Set authentication credentials for the rclone daemon.
+    pub fn set_credentials(&mut self, credentials: Credentials) {
+        debug!("Setting authentication credentials");
+        self.credentials = Some(credentials);
+    }
+
+    /// Clear authentication credentials.
+    pub fn clear_credentials(&mut self) {
+        debug!("Clearing authentication credentials");
+        self.credentials = None;
+    }
+
+    /// Get current credentials if set.
+    #[allow(dead_code)]
+    pub fn credentials(&self) -> Option<&Credentials> {
+        self.credentials.as_ref()
+    }
+
+    /// Helper method to add authentication headers to a request.
+    fn add_auth_header(&self, request: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
+        if let Some(creds) = &self.credentials {
+            request.header("Authorization", creds.auth_header())
+        } else {
+            request
         }
     }
 
@@ -38,7 +68,14 @@ impl RcloneClient {
         debug!("Listing remotes");
         let url = format!("{}/config/listremotes", self.base_url);
 
-        let response = self.client.post(&url).send().await?;
+        let request = self.client.post(&url);
+        let request = self.add_auth_header(request);
+
+        let response = request.send().await?;
+
+        if response.status() == 401 {
+            return Err(LazyFileError::Unauthorized);
+        }
 
         if !response.status().is_success() {
             error!("Failed to list remotes: {}", response.status());
@@ -83,15 +120,17 @@ impl RcloneClient {
         debug!("Listing files in {}", fs_path);
         let url = format!("{}/operations/list", self.base_url);
 
-        let response = self
-            .client
-            .post(&url)
-            .json(&serde_json::json!({
-                "fs": fs_path,
-                "remote": ""
-            }))
-            .send()
-            .await?;
+        let request = self.client.post(&url).json(&serde_json::json!({
+            "fs": fs_path,
+            "remote": ""
+        }));
+        let request = self.add_auth_header(request);
+
+        let response = request.send().await?;
+
+        if response.status() == 401 {
+            return Err(LazyFileError::Unauthorized);
+        }
 
         if !response.status().is_success() {
             error!("Failed to list files: {}", response.status());
@@ -132,13 +171,16 @@ impl RcloneClient {
     ) -> Result<()> {
         debug!("Creating remote: {} (type: {})", name, remote_type);
         let url = format!("{}/config/create", self.base_url);
-        let request = ConfigCreateRequest {
+        let request_data = ConfigCreateRequest {
             name: name.to_string(),
             remote_type: remote_type.to_string(),
             parameters,
         };
 
-        let response = self.client.post(&url).json(&request).send().await?;
+        let request = self.client.post(&url).json(&request_data);
+        let request = self.add_auth_header(request);
+
+        let response = request.send().await?;
 
         if !response.status().is_success() {
             error!("Failed to create remote: {}", response.status());
@@ -168,12 +210,15 @@ impl RcloneClient {
     ) -> Result<()> {
         debug!("Updating remote: {}", name);
         let url = format!("{}/config/update", self.base_url);
-        let request = ConfigUpdateRequest {
+        let request_data = ConfigUpdateRequest {
             name: name.to_string(),
             parameters,
         };
 
-        let response = self.client.post(&url).json(&request).send().await?;
+        let request = self.client.post(&url).json(&request_data);
+        let request = self.add_auth_header(request);
+
+        let response = request.send().await?;
 
         if !response.status().is_success() {
             error!("Failed to update remote: {}", response.status());
@@ -198,11 +243,14 @@ impl RcloneClient {
     pub async fn delete_remote(&self, name: &str) -> Result<()> {
         debug!("Deleting remote: {}", name);
         let url = format!("{}/config/delete", self.base_url);
-        let request = ConfigDeleteRequest {
+        let request_data = ConfigDeleteRequest {
             name: name.to_string(),
         };
 
-        let response = self.client.post(&url).json(&request).send().await?;
+        let request = self.client.post(&url).json(&request_data);
+        let request = self.add_auth_header(request);
+
+        let response = request.send().await?;
 
         if !response.status().is_success() {
             error!("Failed to delete remote: {}", response.status());

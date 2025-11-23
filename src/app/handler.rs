@@ -1,8 +1,9 @@
 //! Keyboard event handling.
 
 use super::state::{App, Panel};
-use crate::error::Result;
-use crate::ui::{ConfirmModal, CreateRemoteModal, CreateRemoteMode};
+use crate::auth::Credentials;
+use crate::error::{LazyFileError, Result};
+use crate::ui::{ConfirmModal, CreateRemoteModal, CreateRemoteMode, LoginField, LoginModal};
 use crossterm::event::{KeyCode, KeyEvent};
 use std::collections::HashMap;
 use tracing::{debug, info};
@@ -20,6 +21,11 @@ impl Handler {
     /// # Errors
     /// Returns error if rclone API calls fail.
     pub async fn handle_key(app: &mut App, key: KeyEvent) -> Result<()> {
+        // If login modal is open, handle it with priority
+        if app.login_modal.is_some() {
+            return Self::handle_login_key(app, key).await;
+        }
+
         // If confirmation modal is open, handle it
         if app.confirm_modal.is_some() {
             return Self::handle_confirm_key(app, key).await;
@@ -210,8 +216,17 @@ impl Handler {
                     info!("Selecting remote: {}", remote);
                     app.current_remote = Some(remote.clone());
                     app.current_path = String::new();
-                    app.load_files().await?;
-                    app.focused_panel = Panel::Files;
+                    match app.load_files().await {
+                        Ok(_) => {
+                            app.focused_panel = Panel::Files;
+                        }
+                        Err(LazyFileError::Unauthorized) => {
+                            debug!("Authentication required to access remote");
+                            app.login_modal = Some(LoginModal::new_basic());
+                            app.current_remote = None;
+                        }
+                        Err(e) => return Err(e),
+                    }
                 }
             }
             Panel::Files => {
@@ -225,7 +240,20 @@ impl Handler {
                     } else {
                         app.current_path = format!("{}/{}", app.current_path, name);
                     }
-                    app.load_files().await?;
+                    match app.load_files().await {
+                        Ok(_) => {}
+                        Err(LazyFileError::Unauthorized) => {
+                            debug!("Authentication required to access directory");
+                            app.login_modal = Some(LoginModal::new_basic());
+                            // Revert path change
+                            if let Some(last_slash) = app.current_path.rfind('/') {
+                                app.current_path.truncate(last_slash);
+                            } else {
+                                app.current_path.clear();
+                            }
+                        }
+                        Err(e) => return Err(e),
+                    }
                 }
             }
         }
@@ -252,6 +280,90 @@ impl Handler {
                 }
             }
             Panel::Remotes => {}
+        }
+        Ok(())
+    }
+
+    /// Handle keyboard input while login modal is open.
+    async fn handle_login_key(app: &mut App, key: KeyEvent) -> Result<()> {
+        if let Some(ref mut modal) = app.login_modal {
+            match key.code {
+                KeyCode::Esc => {
+                    debug!("Closing login modal");
+                    app.login_modal = None;
+                }
+                KeyCode::Tab => {
+                    modal.next_field();
+                }
+                KeyCode::BackTab => {
+                    modal.prev_field();
+                }
+                KeyCode::Char('l') if matches!(modal.focus_field, LoginField::Password) => {
+                    // Toggle password masking with 'l'
+                    modal.toggle_password_visibility();
+                }
+                KeyCode::Char(c) => {
+                    modal.input_char(c);
+                    modal.error = None;
+                }
+                KeyCode::Backspace => {
+                    modal.backspace();
+                    modal.error = None;
+                }
+                KeyCode::Enter => {
+                    Self::handle_login_submit(app).await?;
+                }
+                _ => {}
+            }
+        }
+        Ok(())
+    }
+
+    /// Handle login modal submission.
+    async fn handle_login_submit(app: &mut App) -> Result<()> {
+        if let Some(ref modal) = app.login_modal.clone() {
+            if !modal.is_valid() {
+                if let Some(ref mut login_modal) = app.login_modal {
+                    login_modal.error = Some("All fields are required".to_string());
+                }
+                return Ok(());
+            }
+
+            // Create credentials from modal input
+            let credentials = match modal.auth_type {
+                crate::auth::CredentialsType::Basic => {
+                    Credentials::basic(modal.username.clone(), modal.password.clone(), None)
+                }
+                crate::auth::CredentialsType::Bearer => {
+                    Credentials::bearer(modal.password.clone(), None)
+                }
+            };
+
+            // Set credentials in client
+            app.client.set_credentials(credentials.clone());
+
+            // Try to set in auth manager
+            if let Err(e) = app.auth_manager.set_daemon_credentials(credentials) {
+                if let Some(ref mut login_modal) = app.login_modal {
+                    login_modal.error = Some(format!("Failed to save credentials: {}", e));
+                }
+                return Ok(());
+            }
+
+            // Try to reload remotes to verify auth
+            match app.load_remotes().await {
+                Ok(_) => {
+                    info!("Authentication successful");
+                    app.login_modal = None;
+                }
+                Err(e) => {
+                    if let Some(ref mut login_modal) = app.login_modal {
+                        login_modal.error = Some(format!("Authentication failed: {}", e));
+                    }
+                    // Clear credentials on auth failure
+                    app.client.clear_credentials();
+                }
+            }
         }
         Ok(())
     }

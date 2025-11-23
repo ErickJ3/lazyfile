@@ -91,7 +91,7 @@ This is the simplest option for local development and personal use. The server r
 rclone rcd --rc-addr localhost:5572 --rc-user your_username --rc-pass your_password
 ```
 
-Note: Authentication support in LazyFile is not yet implemented. If you start rclone with authentication, LazyFile will not be able to connect. This is a planned feature.
+lazyfile now supports authentication for rclone rc! When you start the application with a rclone daemon that requires authentication, lazyfile will prompt you with a login modal on startup (or when receiving a 401 unauthorized response).
 
 ### Step 2: Run LazyFile
 
@@ -174,23 +174,55 @@ The status bar at the bottom displays:
 - Current remote and path (format: `remote:path` or `remote:` for root)
 - Connection status to rclone daemon
 
+### Authentication
+
+LazyFile supports HTTP Basic Auth and Bearer token authentication for secure rclone RC connections.
+
+**On Application Startup:**
+
+When you launch LazyFile with a rclone daemon that requires authentication, a login modal will appear automatically. You can:
+
+- Enter your username and password for Basic Auth
+- Or enter a Bearer token
+- Press `Enter` to submit or `Esc` to cancel
+
+**Login Modal Controls:**
+
+- `Tab` / `Shift+Tab` - Switch between fields
+- `Enter` - Submit login
+- `Esc` - Cancel login
+- `l` - Toggle password visibility (while in password field)
+
+**Credential Storage:**
+
+Credentials are securely stored in your system's credential store (using OS-level keyrings) to avoid storing passwords in plain text. On first login, your credentials will be saved automatically.
+
+**Per-Remote Authentication:**
+
+LazyFile supports different authentication credentials for different remotes. When accessing a remote that requires different credentials than the daemon, you can configure them separately (this feature is available via configuration files).
+
 ### Troubleshooting
 
-**Application won't start or shows "403 Forbidden":**
+**"403 Forbidden" or authentication fails:**
 
-This typically means rclone RC requires authentication. LazyFile does not yet support authenticated RC servers.
+1. If your rclone daemon requires authentication, make sure you enter the correct credentials in the login modal
+2. Verify your rclone daemon is running with the correct `--rc-user` and `--rc-pass`:
 
-1. Ensure rclone daemon is running with `--rc-no-auth`:
+   ```bash
+   rclone rcd --rc-addr localhost:5572 --rc-user myuser --rc-pass mypass
+   ```
+
+3. If you prefer to use rclone without authentication, start it with `--rc-no-auth`:
 
    ```bash
    rclone rcd --rc-addr localhost:5572 --rc-no-auth
    ```
 
-2. Check that port 5572 is not in use: `lsof -i :5572` or `netstat -an | grep 5572`
+4. Check that port 5572 is not in use: `lsof -i :5572` or `netstat -an | grep 5572`
 
-3. Verify rclone has configured remotes: `rclone config file` and `rclone config show`
+5. Verify rclone has configured remotes: `rclone config file` and `rclone config show`
 
-4. Test rclone daemon manually:
+6. Test rclone daemon manually:
 
    ```bash
    curl http://localhost:5572/config/listremotes
@@ -198,7 +230,7 @@ This typically means rclone RC requires authentication. LazyFile does not yet su
 
    Should return JSON with your remotes, not a 403 error.
 
-5. Run LazyFile with trace logging to see connection details:
+7. Run LazyFile with trace logging to see connection details:
 
    ```bash
    RUST_LOG=lazyfile=trace lazyfile
@@ -207,10 +239,9 @@ This typically means rclone RC requires authentication. LazyFile does not yet su
 **Errors loading remotes or files:**
 
 1. Confirm rclone daemon is running and accessible
-2. Check that authentication is disabled (`--rc-no-auth` flag used)
-3. Verify the remote is properly configured: `rclone config show`
-4. Check rclone logs for API errors
-5. Run with debug logging to identify the issue: `RUST_LOG=lazyfile=debug lazyfile`
+2. Verify the remote is properly configured: `rclone config show`
+3. Check rclone logs for API errors
+4. Run with debug logging to identify the issue: `RUST_LOG=lazyfile=debug lazyfile`
 
 ## Logging and Debugging
 
@@ -312,7 +343,6 @@ Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) for gu
 
 Current implementation provides remote browsing and remote management. Future versions will include:
 
-- **Authentication support for rclone RC** (HTTP Basic Auth / Bearer tokens)
 - File operations (copy, move, delete)
 - Search and filter functionality within remotes
 - Multiple file selection

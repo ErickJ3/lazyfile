@@ -25,3 +25,6 @@ dirs = "6"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 clap = { version = "4.5.53", features=["derive"] }
+keyring = "3"
+base64 = "0.22"
+sha2 = "0.10"
