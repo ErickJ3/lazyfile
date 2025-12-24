@@ -3,8 +3,7 @@
 use crate::error::{LazyFileError, Result};
 use crate::rclone::types::{
     ConfigCreateRequest, ConfigDeleteRequest, ConfigUpdateRequest, CopyFileRequest,
-    DeleteFileRequest, FileItem, MkdirRequest, MoveFileRequest, PurgeRequest,
-    SyncCopyRequest,
+    DeleteFileRequest, FileItem, MkdirRequest, MoveFileRequest, PurgeRequest, SyncCopyRequest,
 };
 use reqwest::Client;
 use std::collections::HashMap;
@@ -245,7 +244,10 @@ impl RcloneClient {
             )));
         }
 
-        debug!("Directory created successfully at {}:{}", remote, remote_path);
+        debug!(
+            "Directory created successfully at {}:{}",
+            remote, remote_path
+        );
         Ok(())
     }
 
@@ -311,7 +313,10 @@ impl RcloneClient {
             )));
         }
 
-        debug!("Directory purged successfully at {}:{}", remote, remote_path);
+        debug!(
+            "Directory purged successfully at {}:{}",
+            remote, remote_path
+        );
         Ok(())
     }
 
@@ -416,10 +421,7 @@ impl RcloneClient {
     /// # Errors
     /// Returns error if rclone daemon is unreachable or responds with error.
     pub async fn sync_copy(&self, src_remote: &str, dst_remote: &str) -> Result<()> {
-        debug!(
-            "Syncing/copying from {}:/ to {}:/",
-            src_remote, dst_remote
-        );
+        debug!("Syncing/copying from {}:/ to {}:/", src_remote, dst_remote);
         let url = format!("{}/sync/copy", self.base_url);
         let request = SyncCopyRequest {
             src_fs: format!("{}:", src_remote),

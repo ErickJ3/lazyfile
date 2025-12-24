@@ -202,9 +202,7 @@ impl FileOperationsWidget {
         // Input field (if needed)
         let mut message_idx = 1;
         if modal.needs_input() {
-            let input_style = Style::default()
-                .fg(Color::Cyan)
-                .bg(Color::Black);
+            let input_style = Style::default().fg(Color::Cyan).bg(Color::Black);
             let input_text = format!(" {} ", modal.input);
             let input = Paragraph::new(input_text)
                 .style(input_style)
@@ -215,10 +213,8 @@ impl FileOperationsWidget {
 
         // Error message
         if let Some(error) = &modal.error {
-            let error_para = Paragraph::new(error.as_str())
-                .style(Style::default().fg(Color::Red));
+            let error_para = Paragraph::new(error.as_str()).style(Style::default().fg(Color::Red));
             f.render_widget(error_para, chunks[message_idx]);
-            message_idx += 1;
         }
 
         // Help text
@@ -227,8 +223,7 @@ impl FileOperationsWidget {
         } else {
             "Enter: confirm | Esc: cancel"
         };
-        let help = Paragraph::new(help_text)
-            .style(Style::default().fg(Color::Gray));
+        let help = Paragraph::new(help_text).style(Style::default().fg(Color::Gray));
         f.render_widget(help, chunks[chunks.len() - 1]);
     }
 }
@@ -244,12 +239,18 @@ mod tests {
     #[test]
     fn test_file_operation_type_equality() {
         assert_eq!(FileOperationType::DeleteFile, FileOperationType::DeleteFile);
-        assert_eq!(FileOperationType::DeleteDirectory, FileOperationType::DeleteDirectory);
+        assert_eq!(
+            FileOperationType::DeleteDirectory,
+            FileOperationType::DeleteDirectory
+        );
         assert_eq!(FileOperationType::Mkdir, FileOperationType::Mkdir);
         assert_eq!(FileOperationType::Copy, FileOperationType::Copy);
         assert_eq!(FileOperationType::Move, FileOperationType::Move);
 
-        assert_ne!(FileOperationType::DeleteFile, FileOperationType::DeleteDirectory);
+        assert_ne!(
+            FileOperationType::DeleteFile,
+            FileOperationType::DeleteDirectory
+        );
         assert_ne!(FileOperationType::Copy, FileOperationType::Move);
     }
 
@@ -323,7 +324,10 @@ mod tests {
     #[test]
     fn test_delete_directory_modal_message() {
         let modal = FileOperationsModal::delete_directory("important_folder".to_string());
-        assert_eq!(modal.get_message(), "Delete directory 'important_folder' and all contents?");
+        assert_eq!(
+            modal.get_message(),
+            "Delete directory 'important_folder' and all contents?"
+        );
     }
 
     #[test]
@@ -443,7 +447,8 @@ mod tests {
 
     #[test]
     fn test_move_modal_creation() {
-        let modal = FileOperationsModal::move_file("source.txt".to_string(), "/current".to_string());
+        let modal =
+            FileOperationsModal::move_file("source.txt".to_string(), "/current".to_string());
 
         assert_eq!(modal.operation, FileOperationType::Move);
         assert_eq!(modal.file_name, "source.txt");
@@ -478,7 +483,8 @@ mod tests {
 
     #[test]
     fn test_move_valid_when_has_destination() {
-        let mut modal = FileOperationsModal::move_file("source.txt".to_string(), "/path".to_string());
+        let mut modal =
+            FileOperationsModal::move_file("source.txt".to_string(), "/path".to_string());
         modal.input_char('n');
         modal.input_char('e');
         modal.input_char('w');
@@ -620,10 +626,8 @@ mod tests {
 
     #[test]
     fn test_nested_path_copy() {
-        let modal = FileOperationsModal::copy(
-            "file.txt".to_string(),
-            "/very/deep/nested/path".to_string()
-        );
+        let modal =
+            FileOperationsModal::copy("file.txt".to_string(), "/very/deep/nested/path".to_string());
         assert_eq!(modal.current_path, "/very/deep/nested/path");
     }
 }

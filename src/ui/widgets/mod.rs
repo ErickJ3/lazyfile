@@ -11,9 +11,7 @@ pub mod status_bar;
 pub use confirm_modal::{ConfirmModal, ConfirmWidget};
 pub use create_remote::{CreateRemoteModal, CreateRemoteMode, CreateRemoteWidget, RemoteField};
 pub use file_list::FileListWidget;
-pub use file_operations_modal::{
-    FileOperationsModal, FileOperationType, FileOperationsWidget,
-};
+pub use file_operations_modal::{FileOperationType, FileOperationsModal, FileOperationsWidget};
 pub use help::HelpWidget;
 pub use remote_list::RemoteListWidget;
 pub use status_bar::StatusBarWidget;
