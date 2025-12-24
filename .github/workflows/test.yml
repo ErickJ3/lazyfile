@@ -8,7 +8,7 @@ on:
 
 jobs:
   test:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
@@ -35,7 +35,7 @@ jobs:
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Run tests
-        run: cargo test --verbose
+        run: cargo test --lib --verbose
 
       - name: Run clippy
         run: cargo clippy -- -D warnings
@@ -44,7 +44,7 @@ jobs:
         run: cargo fmt -- --check
 
   build:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     needs: test
 
     steps:
@@ -79,7 +79,7 @@ jobs:
           if-no-files-found: ignore
 
   security-audit:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4

@@ -24,7 +24,7 @@ pub struct ConfigCreateRequest {
     pub name: String,
     #[serde(rename = "type")]
     pub remote_type: String,
-    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    #[serde(default)]
     pub parameters: HashMap<String, String>,
 }
 
@@ -32,7 +32,7 @@ pub struct ConfigCreateRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConfigUpdateRequest {
     pub name: String,
-    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    #[serde(default)]
     pub parameters: HashMap<String, String>,
 }
 
@@ -40,6 +40,62 @@ pub struct ConfigUpdateRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConfigDeleteRequest {
     pub name: String,
+}
+
+/// Parameters for rclone `operations/mkdir` call.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MkdirRequest {
+    pub fs: String,
+    pub remote: String,
+}
+
+/// Parameters for rclone `operations/deletefile` call.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeleteFileRequest {
+    pub fs: String,
+    pub remote: String,
+}
+
+/// Parameters for rclone `operations/purge` call.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PurgeRequest {
+    pub fs: String,
+    pub remote: String,
+}
+
+/// Parameters for rclone `operations/copyfile` call.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CopyFileRequest {
+    #[serde(rename = "srcFs")]
+    pub src_fs: String,
+    #[serde(rename = "srcRemote")]
+    pub src_remote: String,
+    #[serde(rename = "dstFs")]
+    pub dst_fs: String,
+    #[serde(rename = "dstRemote")]
+    pub dst_remote: String,
+}
+
+/// Parameters for rclone `operations/movefile` call.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MoveFileRequest {
+    #[serde(rename = "srcFs")]
+    pub src_fs: String,
+    #[serde(rename = "srcRemote")]
+    pub src_remote: String,
+    #[serde(rename = "dstFs")]
+    pub dst_fs: String,
+    #[serde(rename = "dstRemote")]
+    pub dst_remote: String,
+}
+
+/// Parameters for rclone `sync/copy` call.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SyncCopyRequest {
+    #[serde(rename = "srcFs")]
+    pub src_fs: String,
+    #[serde(rename = "dstFs")]
+    pub dst_fs: String,
 }
 
 /// Represents a file or directory from rclone.
