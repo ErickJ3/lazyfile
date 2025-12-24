@@ -1,17 +1,11 @@
 //! LazyFile - TUI file manager for cloud storage using rclone.
 
-mod app;
-mod cli;
-mod config;
-mod error;
-mod launcher;
-mod rclone;
-mod ui;
-
-use app::App;
+use lazyfile::app::App;
+use lazyfile::cli::Args;
+use lazyfile::error;
+use lazyfile::launcher;
+use lazyfile::rclone::RcloneClient;
 use clap::Parser;
-use cli::Args;
-use rclone::RcloneClient;
 
 #[tokio::main]
 async fn main() -> error::Result<()> {

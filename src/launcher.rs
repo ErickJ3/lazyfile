@@ -75,6 +75,11 @@ fn ui_render(f: &mut Frame, app: &App) {
         true,
     );
 
+    // Render file operations modal if open
+    if let Some(ref modal) = app.file_operations_modal {
+        crate::ui::FileOperationsWidget::render(f, f.area(), modal);
+    }
+
     // Render confirmation modal if open
     if let Some(ref modal) = app.confirm_modal {
         crate::ui::ConfirmWidget::render(f, f.area(), modal);
