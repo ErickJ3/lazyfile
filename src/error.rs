@@ -10,8 +10,11 @@ pub enum LazyFileError {
     Io(#[from] std::io::Error),
 
     /// Rclone API error.
-    #[error("Rclone API error: {0}")]
-    RcloneApi(String),
+    #[error("rclone API error on {endpoint}: {message}")]
+    RcloneApi {
+        endpoint: &'static str,
+        message: String,
+    },
 
     /// HTTP request error.
     #[error("HTTP error: {0}")]

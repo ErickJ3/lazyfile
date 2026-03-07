@@ -14,5 +14,11 @@ pub const PURGE: &str = "operations/purge";
 pub const COPY_FILE: &str = "operations/copyfile";
 /// Move a file.
 pub const MOVE_FILE: &str = "operations/movefile";
+/// Create a remote configuration.
+pub const CONFIG_CREATE: &str = "config/create";
+/// Update a remote configuration.
+pub const CONFIG_UPDATE: &str = "config/update";
+/// Delete a remote configuration.
+pub const CONFIG_DELETE: &str = "config/delete";
 /// Sync/copy a directory.
 pub const SYNC_COPY: &str = "sync/copy";
