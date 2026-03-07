@@ -1,6 +1,6 @@
 # LazyFile
 
-A simple terminal UI for browsing and interacting with cloud storage via rclone.
+A terminal file browser for rclone remotes.
 
 ![Tests](https://img.shields.io/github/actions/workflow/status/ErickJ3/lazyfile/test.yml?branch=main&label=test)
 ![Release](https://img.shields.io/github/actions/workflow/status/ErickJ3/lazyfile/release.yml?branch=main&label=release)
@@ -9,59 +9,31 @@ A simple terminal UI for browsing and interacting with cloud storage via rclone.
 
 ![LazyFile Screenshot](./assets/screenshot.png)
 
-## Table of Contents
+## What is this?
 
-- [Overview](#overview)
-- [Features](#features)
-- [Installation](#installation)
-- [Starting the Application](#starting-the-application)
-- [Usage](#usage)
-- [Logging and Debugging](#logging-and-debugging)
-- [Development](#development)
-- [Contributing](#contributing)
-- [Roadmap](#roadmap)
-- [Getting Help](#getting-help)
-- [License](#license)
+LazyFile is a two-panel TUI that talks to rclone's JSON-RPC API. Remotes on the left, their contents on the right, vim-style keys to move around. Basically lazygit for cloud storage.
 
-## Overview
-
-LazyFile provides a lightweight terminal user interface for interacting with cloud storage systems via rclone. Instead of typing complex rclone commands or navigating nested command-line arguments, LazyFile presents an intuitive two-panel file browser directly in your terminal.
-
-The project is built in Rust using ratatui for the terminal interface and rclone's JSON-RPC API for file operations. It emphasizes simplicity, reliability, and developer experience.
+Built with Rust, ratatui, and reqwest.
 
 ## Features
 
-**Core Features:**
+Browse rclone remotes, navigate directories, and manage remote configs -- all from your terminal.
 
-- Browse configured rclone remotes from a simple list
-- Navigate remote filesystems with keyboard navigation
-- View file names and directory structure
-- Switch focus between remote and file list panels
-- Intuitive keybindings inspired by vim and lazygit
+Keybindings:
 
-**Keybindings:**
-
-- `k` or `↑` - Navigate up
-- `j` or `↓` - Navigate down
-- `Enter` - Open remote or directory
-- `Backspace` - Go back to parent directory or remotes list
-- `Tab` - Switch focus between panels
-- `a` - Add a new remote
-- `e` - Edit the selected remote
-- `d` - Delete the selected remote (with confirmation)
-- `q` - Quit application
+- `k` / `Up` -- move up
+- `j` / `Down` -- move down
+- `Enter` -- open remote or directory
+- `Backspace` -- go back
+- `Tab` -- switch panels
+- `a` -- add remote
+- `e` -- edit remote
+- `d` -- delete remote (asks for confirmation)
+- `q` -- quit
 
 ## Installation
 
-### Prerequisites
-
-- Rust 1.70 or later
-- rclone configured with at least one remote
-- rclone daemon running on localhost:5572
-
-### Build from Source
-
-Clone the repository and build with cargo:
+You need Rust 1.70+, and rclone with at least one remote configured.
 
 ```bash
 git clone https://github.com/ErickJ3/lazyfile.git
@@ -69,188 +41,93 @@ cd lazyfile
 cargo build --release
 ```
 
-The binary will be available at `target/release/lazyfile`.
+Binary ends up at `target/release/lazyfile`.
 
-## Starting the Application
+## Getting started
 
-### Step 1: Start the rclone daemon
+### 1. Start the rclone daemon
 
-In a separate terminal, start the rclone RC (Remote Control) server. LazyFile communicates with rclone via its JSON-RPC API.
-
-**Option A: Without authentication (Recommended for local use)**
+In a separate terminal:
 
 ```bash
 rclone rcd --rc-addr localhost:5572 --rc-no-auth
 ```
 
-This is the simplest option for local development and personal use. The server runs without authentication requirements.
+That starts rclone's RC server without auth, which is fine for local use.
 
-**Option B: With authentication (For remote/secure access)**
+Auth support (`--rc-user` / `--rc-pass`) isn't implemented in LazyFile yet. If you start rclone with auth enabled, LazyFile won't be able to connect.
 
-```bash
-rclone rcd --rc-addr localhost:5572 --rc-user your_username --rc-pass your_password
-```
-
-Note: Authentication support in LazyFile is not yet implemented. If you start rclone with authentication, LazyFile will not be able to connect. This is a planned feature.
-
-### Step 2: Run LazyFile
-
-In another terminal, run the application:
+### 2. Run LazyFile
 
 ```bash
 lazyfile
 ```
 
-### Configuration
-
-By default, LazyFile connects to `localhost:5572`. If your rclone daemon is running on a different host or port, you can specify it via command-line arguments:
+By default it connects to `localhost:5572`. To change that:
 
 ```bash
 lazyfile --host localhost --port 8080
 ```
 
-**Available options:**
-
-- `--host` - Specify the rclone daemon host (default: `localhost`)
-- `--port` - Specify the rclone daemon port (default: `5572`)
-
-**Example: Remote rclone daemon**
-
-If you have rclone running on a remote server:
+If rclone is on a remote machine:
 
 ```bash
-# Start rclone daemon on the remote server
-ssh user@remote-server "rclone rcd --rc-addr 0.0.0.0:5572 --rc-no-auth"
+# On the remote server
+rclone rcd --rc-addr 0.0.0.0:5572 --rc-no-auth
 
-# Connect from your local machine
+# On your machine
 lazyfile --host remote-server --port 5572
 ```
 
 ## Usage
 
-### Basic Navigation
+The left panel shows your rclone remotes (gdrive, dropbox, s3, etc.). The right panel shows files in whichever remote you've selected.
 
-The interface consists of two panels:
+1. `j`/`k` to pick a remote
+2. `Enter` to open it
+3. Navigate files in the right panel
+4. `Enter` to open directories, `Backspace` to go back
+5. `Tab` to switch between panels
 
-**Left Panel:** List of configured rclone remotes (gdrive, dropbox, s3, etc.)
-**Right Panel:** Files and directories in the selected remote/path
+### Managing remotes
 
-### Workflow
+With the remote list focused:
 
-1. Start the application with `lazyfile`
-2. Use `j`/`k` to navigate the remote list
-3. Press `Enter` to select a remote and view its contents
-4. Navigate files with `j`/`k` in the right panel
-5. Press `Enter` to open directories
-6. Press `Backspace` to go back to the parent directory
-7. Press `Tab` to switch focus between panels
-8. Press `q` to quit
+- `a` opens a modal to create a new remote (name, type, path)
+- `e` opens an edit modal for the selected remote
+- `d` asks for confirmation, then deletes
 
-### Remote Management
+### Status bar
 
-With the remote list focused (press `Tab` to switch), you can manage remotes:
-
-**Add a new remote:**
-
-- Press `a` to open the create modal
-- Enter the remote name, type (e.g., `local`, `drive`, `s3`), and path/configuration
-- Press `Enter` to create or `Esc` to cancel
-
-**Edit an existing remote:**
-
-- Select a remote and press `e` to open the edit modal
-- Modify the configuration fields
-- Press `Enter` to save or `Esc` to cancel
-
-**Delete a remote:**
-
-- Select a remote and press `d` to open a confirmation dialog
-- Press `y` to confirm deletion or `n` to cancel
-
-### Status Bar
-
-The status bar at the bottom displays:
-
-- Current remote and path (format: `remote:path` or `remote:` for root)
-- Connection status to rclone daemon
+Shows the current `remote:path` and connection status.
 
 ### Troubleshooting
 
-**Application won't start or shows "403 Forbidden":**
+**"403 Forbidden" on startup:** rclone is running with auth enabled. Restart it with `--rc-no-auth`.
 
-This typically means rclone RC requires authentication. LazyFile does not yet support authenticated RC servers.
+If something else is wrong:
 
-1. Ensure rclone daemon is running with `--rc-no-auth`:
+1. Check rclone is actually running: `curl http://localhost:5572/config/listremotes`
+2. Check port isn't taken: `lsof -i :5572`
+3. Check rclone has remotes: `rclone config show`
+4. Run with trace logging: `RUST_LOG=lazyfile=trace lazyfile`
 
-   ```bash
-   rclone rcd --rc-addr localhost:5572 --rc-no-auth
-   ```
+## Logging
 
-2. Check that port 5572 is not in use: `lsof -i :5572` or `netstat -an | grep 5572`
-
-3. Verify rclone has configured remotes: `rclone config file` and `rclone config show`
-
-4. Test rclone daemon manually:
-
-   ```bash
-   curl http://localhost:5572/config/listremotes
-   ```
-
-   Should return JSON with your remotes, not a 403 error.
-
-5. Run LazyFile with trace logging to see connection details:
-
-   ```bash
-   RUST_LOG=lazyfile=trace lazyfile
-   ```
-
-**Errors loading remotes or files:**
-
-1. Confirm rclone daemon is running and accessible
-2. Check that authentication is disabled (`--rc-no-auth` flag used)
-3. Verify the remote is properly configured: `rclone config show`
-4. Check rclone logs for API errors
-5. Run with debug logging to identify the issue: `RUST_LOG=lazyfile=debug lazyfile`
-
-## Logging and Debugging
-
-LazyFile uses structured logging with the `tracing` crate. **Logging is disabled by default** to avoid interfering with the TUI interface, keeping it clean like other TUI tools (`lazygit`, `lazydocker`).
-
-### Enabling Logging
-
-Set the `RUST_LOG` environment variable to enable logging:
-
-**Debug level (recommended for troubleshooting):**
+Logging is off by default (it would mess up the TUI). Turn it on with `RUST_LOG`:
 
 ```bash
+# Debug level -- good for troubleshooting
 RUST_LOG=lazyfile=debug lazyfile
-```
 
-**Trace level (very verbose, includes network requests and detailed operations):**
-
-```bash
+# Trace level -- very verbose, includes HTTP requests
 RUST_LOG=lazyfile=trace lazyfile
-```
 
-**Specific component logging:**
-
-```bash
-# Only log rclone client operations
+# Just one module
 RUST_LOG=lazyfile::rclone::client=trace lazyfile
-
-# Only log event handling
-RUST_LOG=lazyfile::app::handler=debug lazyfile
 ```
 
-### Capturing Logs to a File
-
-Since logs go to stderr, you can redirect them separately:
-
-```bash
-lazyfile 2> lazyfile_debug.log
-```
-
-Or combine with a logging level:
+Logs go to stderr, so you can capture them separately:
 
 ```bash
 RUST_LOG=lazyfile=trace lazyfile 2> lazyfile_debug.log
@@ -258,77 +135,39 @@ RUST_LOG=lazyfile=trace lazyfile 2> lazyfile_debug.log
 
 ## Development
 
-### Building
-
 ```bash
-cargo build
-cargo build --release
-```
-
-### Running Tests
-
-```bash
-cargo test
-```
-
-### Linting and Code Quality
-
-LazyFile uses clippy for linting. Run clippy checks:
-
-```bash
-cargo clippy -- -D warnings
-```
-
-Generate documentation:
-
-```bash
-cargo doc --open
+cargo build                   # debug build
+cargo build --release         # release build
+cargo test                    # run tests
+cargo clippy -- -D warnings   # lint
+cargo doc --open              # generate docs
 ```
 
 ## Contributing
 
-Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to report issues, submit pull requests, and follow the project's code standards.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
-### Quick Start for Contributors
+Short version: fork, branch, make changes, run `cargo clippy` and `cargo fmt`, open a PR.
 
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/your-feature`
-3. Make your changes and test them
-4. Run `cargo clippy` and `cargo fmt` to ensure code quality
-5. Commit with a clear message
-6. Push to your fork and submit a pull request
-
-### Areas for Contribution
-
-- File operations (copy, move, delete)
-- Search and filter functionality
-- Configuration file support
-- Additional keybinding customization
-- Performance optimizations
-- Documentation improvements
+Things that could use help:
+- File operations (copy, move, delete) -- the rclone API endpoints are defined but not wired up
+- Search/filter within remotes
+- Config file support
+- Auth support for rclone RC
 - Bug reports and fixes
 
 ## Roadmap
 
-Current implementation provides remote browsing and remote management. Future versions will include:
+What's working now: remote browsing and remote management (create/edit/delete).
 
-- **Authentication support for rclone RC** (HTTP Basic Auth / Bearer tokens)
+Planned (roughly in order of priority):
+- Auth support for rclone RC -- this is the main blocker for real-world use
 - File operations (copy, move, delete)
-- Search and filter functionality within remotes
-- Multiple file selection
-- Directory synchronization
-- Custom keybindings via config file
-- Customizable themes
-- Configuration file for host/port settings
-- Performance optimizations for large directories
-
-## Getting Help
-
-- Check the troubleshooting section above
-- Review [CONTRIBUTING.md](CONTRIBUTING.md) for bug reporting guidelines
-- Run with logging enabled to diagnose issues: `RUST_LOG=lazyfile=trace lazyfile`
-- Check existing GitHub issues for similar problems
+- Search and filter
+- Multi-file selection
+- Directory sync
+- Custom keybindings, themes, config file -- the nice-to-haves
 
 ## License
 
-LazyFile is released under the MIT License. See LICENSE file for details.
+MIT. See LICENSE.
