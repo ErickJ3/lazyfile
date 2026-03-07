@@ -72,7 +72,7 @@ fn ui_render(f: &mut Frame, app: &App) {
         rects.status,
         app.current_remote.as_deref(),
         &app.current_path,
-        true,
+        app.connected,
     );
 
     // Render file operations modal if open
