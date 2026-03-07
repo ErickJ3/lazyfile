@@ -1,6 +1,6 @@
 //! Files list widget.
 
-use crate::rclone::NavigationItem;
+use crate::rclone::FileItem;
 use crate::ui::styles;
 use ratatui::{
     prelude::*,
@@ -19,13 +19,7 @@ impl FileListWidget {
     /// * `files` - List of navigation items
     /// * `selected` - Index of selected item
     /// * `focused` - Whether this panel is focused
-    pub fn render(
-        f: &mut Frame,
-        area: Rect,
-        files: &[NavigationItem],
-        selected: usize,
-        focused: bool,
-    ) {
+    pub fn render(f: &mut Frame, area: Rect, files: &[FileItem], selected: usize, focused: bool) {
         let items: Vec<ListItem> = files
             .iter()
             .map(|item| {

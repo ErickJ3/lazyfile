@@ -122,26 +122,15 @@ pub struct ListFilesResponse {
     pub list: Option<Vec<FileItem>>,
 }
 
-/// Navigation item in the file browser.
-#[derive(Debug, Clone)]
-pub enum NavigationItem {
-    /// A file or directory.
-    File(FileItem),
-}
-
-impl NavigationItem {
-    /// Get the display name of the item.
+impl FileItem {
+    /// Returns the display name of the item.
     pub fn name(&self) -> &str {
-        match self {
-            NavigationItem::File(item) => &item.name,
-        }
+        &self.name
     }
 
-    /// Check if this is a directory.
+    /// Returns whether this item is a directory.
     pub fn is_dir(&self) -> bool {
-        match self {
-            NavigationItem::File(item) => item.is_dir,
-        }
+        self.is_dir
     }
 }
 
@@ -177,7 +166,7 @@ mod tests {
     }
 
     #[test]
-    fn test_navigation_item_file_name() {
+    fn test_file_item_name_method() {
         let item = FileItem {
             name: "myfile.txt".to_string(),
             size: 100,
@@ -185,12 +174,11 @@ mod tests {
             is_dir: false,
         };
 
-        let nav = NavigationItem::File(item);
-        assert_eq!(nav.name(), "myfile.txt");
+        assert_eq!(item.name(), "myfile.txt");
     }
 
     #[test]
-    fn test_navigation_item_is_dir() {
+    fn test_file_item_is_dir_method() {
         let dir_item = FileItem {
             name: "folder".to_string(),
             size: 0,
@@ -205,8 +193,8 @@ mod tests {
             is_dir: false,
         };
 
-        assert!(NavigationItem::File(dir_item).is_dir());
-        assert!(!NavigationItem::File(file_item).is_dir());
+        assert!(dir_item.is_dir());
+        assert!(!file_item.is_dir());
     }
 
     #[test]

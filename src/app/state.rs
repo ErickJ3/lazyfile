@@ -1,7 +1,7 @@
 //! Application state management.
 
 use crate::error::Result;
-use crate::rclone::{NavigationItem, RcloneClient};
+use crate::rclone::{FileItem, RcloneClient};
 use crate::ui::{ConfirmModal, CreateRemoteModal, FileOperationsModal};
 use tracing::{debug, info};
 
@@ -26,7 +26,7 @@ pub struct App {
     /// Current path within the remote.
     pub current_path: String,
     /// Files and directories in current path.
-    pub files: Vec<NavigationItem>,
+    pub files: Vec<FileItem>,
     /// Selected index in remotes list.
     pub remotes_selected: usize,
     /// Selected index in files list.
@@ -43,6 +43,8 @@ pub struct App {
     pub pending_delete_remote: Option<String>,
     /// Modal for file operations.
     pub file_operations_modal: Option<FileOperationsModal>,
+    /// Whether the rclone daemon is connected.
+    pub connected: bool,
 }
 
 impl App {
@@ -62,25 +64,53 @@ impl App {
             confirm_modal: None,
             pending_delete_remote: None,
             file_operations_modal: None,
+            connected: true,
         }
     }
 
-    /// Load remotes from rclone daemon.
+    /// Loads remotes from rclone daemon.
+    ///
+    /// # Errors
+    /// Returns error if rclone daemon is unreachable.
     pub async fn load_remotes(&mut self) -> Result<()> {
-        debug!("Loading remotes");
-        self.remotes = self.client.list_remotes().await?;
-        self.remotes_selected = 0;
-        info!("Loaded {} remotes", self.remotes.len());
-        Ok(())
+        debug!("loading remotes");
+        match self.client.list_remotes().await {
+            Ok(remotes) => {
+                self.remotes = remotes;
+                self.remotes_selected = 0;
+                self.connected = true;
+                info!(count = self.remotes.len(), "loaded remotes");
+                Ok(())
+            }
+            Err(e) => {
+                self.connected = false;
+                Err(e)
+            }
+        }
     }
 
-    /// Load files from current remote and path.
+    /// Loads files from current remote and path.
+    ///
+    /// # Errors
+    /// Returns error if rclone daemon is unreachable.
     pub async fn load_files(&mut self) -> Result<()> {
         if let Some(ref remote) = self.current_remote {
-            debug!("Loading files from {}:{}", remote, self.current_path);
-            let items = self.client.list_files(remote, &self.current_path).await?;
-            self.files = items.into_iter().map(NavigationItem::File).collect();
-            info!("Loaded {} files", self.files.len());
+            debug!(
+                remote = %remote,
+                path = %self.current_path,
+                "loading files"
+            );
+            match self.client.list_files(remote, &self.current_path).await {
+                Ok(files) => {
+                    self.files = files;
+                    self.connected = true;
+                    info!(count = self.files.len(), "loaded files");
+                }
+                Err(e) => {
+                    self.connected = false;
+                    return Err(e);
+                }
+            }
         }
         self.files_selected = 0;
         Ok(())
@@ -140,7 +170,6 @@ impl App {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::rclone::FileItem;
 
     fn create_test_client() -> RcloneClient {
         RcloneClient::new("localhost", 5572)
@@ -184,18 +213,18 @@ mod tests {
         let client = create_test_client();
         let mut app = App::new(client);
         app.files = vec![
-            NavigationItem::File(FileItem {
+            FileItem {
                 name: "file1".to_string(),
                 size: 100,
                 mod_time: "".to_string(),
                 is_dir: false,
-            }),
-            NavigationItem::File(FileItem {
+            },
+            FileItem {
                 name: "file2".to_string(),
                 size: 200,
                 mod_time: "".to_string(),
                 is_dir: false,
-            }),
+            },
         ];
         app.focused_panel = Panel::Files;
 
@@ -222,12 +251,12 @@ mod tests {
     fn test_navigate_up_files() {
         let client = create_test_client();
         let mut app = App::new(client);
-        app.files = vec![NavigationItem::File(FileItem {
+        app.files = vec![FileItem {
             name: "file1".to_string(),
             size: 100,
             mod_time: "".to_string(),
             is_dir: false,
-        })];
+        }];
         app.files_selected = 1;
         app.focused_panel = Panel::Files;
 
@@ -402,13 +431,11 @@ mod tests {
         let client = create_test_client();
         let mut app = App::new(client);
         app.files = (0..100)
-            .map(|i| {
-                NavigationItem::File(FileItem {
-                    name: format!("file_{}.txt", i),
-                    size: i * 100,
-                    mod_time: "".to_string(),
-                    is_dir: false,
-                })
+            .map(|i| FileItem {
+                name: format!("file_{}.txt", i),
+                size: i * 100,
+                mod_time: "".to_string(),
+                is_dir: false,
             })
             .collect();
         app.focused_panel = Panel::Files;
@@ -500,12 +527,12 @@ mod tests {
         let client = create_test_client();
         let mut app = App::new(client);
 
-        app.files.push(NavigationItem::File(FileItem {
+        app.files.push(FileItem {
             name: "file1.txt".to_string(),
             size: 100,
             mod_time: "".to_string(),
             is_dir: false,
-        }));
+        });
 
         assert_eq!(app.files.len(), 1);
         assert_eq!(app.files[0].name(), "file1.txt");
@@ -531,18 +558,18 @@ mod tests {
         let mut app = App::new(client);
         app.remotes = vec!["r1".to_string(), "r2".to_string(), "r3".to_string()];
         app.files = vec![
-            NavigationItem::File(FileItem {
+            FileItem {
                 name: "f1".to_string(),
                 size: 0,
                 mod_time: "".to_string(),
                 is_dir: false,
-            }),
-            NavigationItem::File(FileItem {
+            },
+            FileItem {
                 name: "f2".to_string(),
                 size: 0,
                 mod_time: "".to_string(),
                 is_dir: false,
-            }),
+            },
         ];
 
         app.focused_panel = Panel::Remotes;
@@ -595,51 +622,51 @@ mod tests {
     }
 
     #[test]
-    fn test_navigation_item_directory() {
-        let dir = NavigationItem::File(FileItem {
+    fn test_file_item_directory() {
+        let dir = FileItem {
             name: "documents".to_string(),
             size: 0,
             mod_time: "".to_string(),
             is_dir: true,
-        });
+        };
 
         assert!(dir.is_dir());
         assert_eq!(dir.name(), "documents");
     }
 
     #[test]
-    fn test_navigation_item_file() {
-        let file = NavigationItem::File(FileItem {
+    fn test_file_item_as_file() {
+        let file = FileItem {
             name: "readme.md".to_string(),
             size: 1024,
             mod_time: "".to_string(),
             is_dir: false,
-        });
+        };
 
         assert!(!file.is_dir());
         assert_eq!(file.name(), "readme.md");
     }
 
     #[test]
-    fn test_navigation_item_with_special_name() {
-        let item = NavigationItem::File(FileItem {
+    fn test_file_item_with_special_name() {
+        let item = FileItem {
             name: "file with spaces & special chars!.txt".to_string(),
             size: 0,
             mod_time: "".to_string(),
             is_dir: false,
-        });
+        };
 
         assert_eq!(item.name(), "file with spaces & special chars!.txt");
     }
 
     #[test]
-    fn test_navigation_item_unicode_name() {
-        let item = NavigationItem::File(FileItem {
+    fn test_file_item_unicode_name() {
+        let item = FileItem {
             name: "файл_日本語.txt".to_string(),
             size: 0,
             mod_time: "".to_string(),
             is_dir: false,
-        });
+        };
 
         assert_eq!(item.name(), "файл_日本語.txt");
     }
