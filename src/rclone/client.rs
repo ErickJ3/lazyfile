@@ -7,6 +7,7 @@ use crate::rclone::types::{
     DeleteFileRequest, FileItem, ListFilesResponse, ListRemotesResponse, MkdirRequest,
     MoveFileRequest, PurgeRequest,
 };
+use crate::rclone::validate::{validate_host, validate_path, validate_remote_name};
 use reqwest::Client;
 use serde::Serialize;
 use std::collections::HashMap;
@@ -30,10 +31,12 @@ impl RcloneClient {
     /// * `port` - Port number of rclone daemon (e.g., 5572)
     ///
     /// # Errors
-    /// Returns error if the HTTP client cannot be constructed, e.g.
+    /// Returns error if the host is not a valid hostname or IPv4
+    /// address, or if the HTTP client cannot be constructed, e.g.
     /// when the system TLS or DNS resolver configuration fails to
     /// load.
     pub fn new(host: &str, port: u16) -> Result<Self> {
+        validate_host(host)?;
         let base_url = format!("http://{}:{}", host, port);
         trace!(base_url = %base_url, "creating RcloneClient");
         let client = Client::builder().timeout(REQUEST_TIMEOUT).build()?;
@@ -103,6 +106,8 @@ impl RcloneClient {
     /// Returns error if rclone daemon is unreachable or responds
     /// with an error.
     pub async fn list_files(&self, remote: &str, path: &str) -> Result<Vec<FileItem>> {
+        validate_remote_name(remote)?;
+        validate_path(path)?;
         let fs = format!("{}:", remote);
         let remote_path = path.trim_start_matches('/');
         debug!(remote, path = remote_path, "listing files");
@@ -132,6 +137,7 @@ impl RcloneClient {
         remote_type: &str,
         parameters: HashMap<String, String>,
     ) -> Result<()> {
+        validate_remote_name(name)?;
         debug!(remote = name, r#type = remote_type, "creating remote");
         let request = ConfigCreateRequest {
             name: name.to_string(),
@@ -153,6 +159,7 @@ impl RcloneClient {
         name: &str,
         parameters: HashMap<String, String>,
     ) -> Result<()> {
+        validate_remote_name(name)?;
         debug!(remote = name, "updating remote");
         let request = ConfigUpdateRequest {
             name: name.to_string(),
@@ -169,6 +176,7 @@ impl RcloneClient {
     /// Returns error if rclone daemon is unreachable or responds
     /// with an error.
     pub async fn delete_remote(&self, name: &str) -> Result<()> {
+        validate_remote_name(name)?;
         debug!(remote = name, "deleting remote");
         let request = ConfigDeleteRequest {
             name: name.to_string(),
@@ -184,6 +192,8 @@ impl RcloneClient {
     /// Returns error if rclone daemon is unreachable or responds
     /// with an error.
     pub async fn mkdir(&self, remote: &str, path: &str) -> Result<()> {
+        validate_remote_name(remote)?;
+        validate_path(path)?;
         let fs = format!("{}:", remote);
         let remote_path = path.trim_start_matches('/');
         debug!(remote, path = remote_path, "creating directory");
@@ -202,6 +212,8 @@ impl RcloneClient {
     /// Returns error if rclone daemon is unreachable or responds
     /// with an error.
     pub async fn delete_file(&self, remote: &str, path: &str) -> Result<()> {
+        validate_remote_name(remote)?;
+        validate_path(path)?;
         let fs = format!("{}:", remote);
         let remote_path = path.trim_start_matches('/');
         debug!(remote, path = remote_path, "deleting file");
@@ -220,6 +232,8 @@ impl RcloneClient {
     /// Returns error if rclone daemon is unreachable or responds
     /// with an error.
     pub async fn purge(&self, remote: &str, path: &str) -> Result<()> {
+        validate_remote_name(remote)?;
+        validate_path(path)?;
         let fs = format!("{}:", remote);
         let remote_path = path.trim_start_matches('/');
         debug!(remote, path = remote_path, "purging directory");
@@ -244,6 +258,10 @@ impl RcloneClient {
         dst_remote: &str,
         dst_path: &str,
     ) -> Result<()> {
+        validate_remote_name(src_remote)?;
+        validate_remote_name(dst_remote)?;
+        validate_path(src_path)?;
+        validate_path(dst_path)?;
         let src = src_path.trim_start_matches('/');
         let dst = dst_path.trim_start_matches('/');
         debug!(
@@ -276,6 +294,10 @@ impl RcloneClient {
         dst_remote: &str,
         dst_path: &str,
     ) -> Result<()> {
+        validate_remote_name(src_remote)?;
+        validate_remote_name(dst_remote)?;
+        validate_path(src_path)?;
+        validate_path(dst_path)?;
         let src = src_path.trim_start_matches('/');
         let dst = dst_path.trim_start_matches('/');
         debug!(
@@ -391,6 +413,38 @@ mod tests {
             err,
             LazyFileError::RcloneApi {
                 endpoint: commands::LIST_REMOTES,
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn rejects_invalid_host() {
+        let err = RcloneClient::new("http://evil", 5572).unwrap_err();
+        assert!(matches!(
+            err,
+            LazyFileError::InvalidInput { field: "host", .. }
+        ));
+    }
+
+    #[tokio::test]
+    async fn rejects_path_traversal_before_request() {
+        let client = RcloneClient::new("localhost", 5572).expect("valid host");
+        let err = client.mkdir("remote", "../evil").await.unwrap_err();
+        assert!(matches!(
+            err,
+            LazyFileError::InvalidInput { field: "path", .. }
+        ));
+    }
+
+    #[tokio::test]
+    async fn rejects_remote_name_with_colon_before_request() {
+        let client = RcloneClient::new("localhost", 5572).expect("valid host");
+        let err = client.delete_file("a:b", "file.txt").await.unwrap_err();
+        assert!(matches!(
+            err,
+            LazyFileError::InvalidInput {
+                field: "remote name",
                 ..
             }
         ));

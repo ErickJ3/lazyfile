@@ -448,6 +448,24 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_mkdir_traversal_input_shows_modal_error() {
+        // Validation fires in the client before any network request,
+        // so this needs no running daemon.
+        let client = create_test_client();
+        let mut app = App::new(client);
+        app.current_remote = Some("remote1".to_string());
+        let mut modal = FileOperationsModal::mkdir("/".to_string());
+        modal.input = "../evil".to_string();
+        app.modal = Some(ActiveModal::FileOperation(modal));
+
+        let key = create_key_event(KeyCode::Enter);
+        Handler::handle_key(&mut app, key).await.unwrap();
+
+        let modal = app.file_operations_modal().unwrap();
+        assert!(modal.error.as_deref().unwrap().contains("invalid path"));
+    }
+
+    #[tokio::test]
     async fn test_open_modal_keys_ignored_while_file_operation_open() {
         // 'd' opens the delete-remote confirmation only when no modal is
         // open; with a file operation active the key routes to the modal
