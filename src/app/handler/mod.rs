@@ -6,7 +6,7 @@ mod remote_modal;
 
 use super::state::{App, Panel};
 use crate::error::Result;
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::{KeyCode, KeyEvent, KeyEventKind};
 use tracing::{debug, info};
 
 /// Handles keyboard input events.
@@ -18,6 +18,13 @@ impl Handler {
     /// # Errors
     /// Returns error if rclone API calls fail.
     pub async fn handle_key(app: &mut App, key: KeyEvent) -> Result<()> {
+        // Terminals with key-release reporting (kitty protocol, Windows
+        // console) deliver Release/Repeat events; acting on them would
+        // fire every keybinding twice.
+        if key.kind != KeyEventKind::Press {
+            return Ok(());
+        }
+
         if app.file_operations_modal.is_some() {
             return Self::handle_file_operations_key(app, key).await;
         }

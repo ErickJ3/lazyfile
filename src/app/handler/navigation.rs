@@ -110,6 +110,43 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_release_key_is_ignored() {
+        let client = create_test_client();
+        let mut app = App::new(client);
+        assert!(app.running);
+
+        let key = KeyEvent {
+            code: KeyCode::Char('q'),
+            modifiers: KeyModifiers::NONE,
+            kind: KeyEventKind::Release,
+            state: KeyEventState::NONE,
+        };
+        Handler::handle_key(&mut app, key).await.unwrap();
+
+        assert!(app.running, "release event must not trigger quit");
+    }
+
+    #[tokio::test]
+    async fn test_repeat_key_is_ignored() {
+        let client = create_test_client();
+        let mut app = App::new(client);
+        app.remotes = vec!["remote1".to_string(), "remote2".to_string()];
+
+        let key = KeyEvent {
+            code: KeyCode::Char('j'),
+            modifiers: KeyModifiers::NONE,
+            kind: KeyEventKind::Repeat,
+            state: KeyEventState::NONE,
+        };
+        Handler::handle_key(&mut app, key).await.unwrap();
+
+        assert_eq!(
+            app.remotes_selected, 0,
+            "repeat event must not trigger navigation"
+        );
+    }
+
+    #[tokio::test]
     async fn test_navigate_down_with_j() {
         let client = create_test_client();
         let mut app = App::new(client);
