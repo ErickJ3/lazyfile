@@ -73,6 +73,11 @@ impl CreateRemoteModal {
     }
 
     pub fn input_char(&mut self, c: char) {
+        // Bracketed paste can deliver control characters as Char
+        // events; they are never valid in any field.
+        if c.is_control() {
+            return;
+        }
         match self.focus_field {
             RemoteField::Name => self.name.push(c),
             RemoteField::Type => self.remote_type.push(c),
@@ -352,5 +357,14 @@ mod tests {
         let mut modal = modal;
         modal.name.clear();
         assert!(!modal.is_valid());
+    }
+
+    #[test]
+    fn test_input_char_ignores_control_chars() {
+        let mut modal = CreateRemoteModal::new(CreateRemoteMode::Create);
+        modal.input_char('\n');
+        modal.input_char('\u{1b}');
+        modal.input_char('a');
+        assert_eq!(modal.name, "a");
     }
 }
