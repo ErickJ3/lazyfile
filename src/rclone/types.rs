@@ -11,14 +11,6 @@ pub struct ListRemotesResponse {
     pub remotes: Option<Vec<String>>,
 }
 
-/// Response from rclone `config/dump` call
-#[allow(dead_code)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ConfigDumpResponse {
-    #[serde(flatten)]
-    pub remotes: HashMap<String, HashMap<String, String>>,
-}
-
 /// Parameters for rclone `config/create` call.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConfigCreateRequest {
@@ -88,15 +80,6 @@ pub struct MoveFileRequest {
     pub dst_fs: String,
     #[serde(rename = "dstRemote")]
     pub dst_remote: String,
-}
-
-/// Parameters for rclone `sync/copy` call.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SyncCopyRequest {
-    #[serde(rename = "srcFs")]
-    pub src_fs: String,
-    #[serde(rename = "dstFs")]
-    pub dst_fs: String,
 }
 
 /// Represents a file or directory from rclone.

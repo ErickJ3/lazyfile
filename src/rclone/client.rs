@@ -5,7 +5,7 @@ use crate::rclone::commands;
 use crate::rclone::types::{
     ConfigCreateRequest, ConfigDeleteRequest, ConfigUpdateRequest, CopyFileRequest,
     DeleteFileRequest, FileItem, ListFilesResponse, ListRemotesResponse, MkdirRequest,
-    MoveFileRequest, PurgeRequest, SyncCopyRequest,
+    MoveFileRequest, PurgeRequest,
 };
 use reqwest::Client;
 use serde::Serialize;
@@ -293,22 +293,6 @@ impl RcloneClient {
         };
         self.post_command(commands::MOVE_FILE, &request).await?;
         info!("file moved");
-        Ok(())
-    }
-
-    /// Syncs/copies a directory between remotes.
-    ///
-    /// # Errors
-    /// Returns error if rclone daemon is unreachable or responds
-    /// with an error.
-    pub async fn sync_copy(&self, src_remote: &str, dst_remote: &str) -> Result<()> {
-        debug!(src_remote, dst_remote, "syncing/copying");
-        let request = SyncCopyRequest {
-            src_fs: format!("{}:", src_remote),
-            dst_fs: format!("{}:", dst_remote),
-        };
-        self.post_command(commands::SYNC_COPY, &request).await?;
-        info!("sync copy completed");
         Ok(())
     }
 }
