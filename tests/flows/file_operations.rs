@@ -33,7 +33,7 @@ async fn test_flow_mkdir_via_modal() {
     Handler::handle_key(&mut app, create_key_event(KeyCode::Char('n')))
         .await
         .unwrap();
-    assert!(app.file_operations_modal.is_some());
+    assert!(app.file_operations_modal().is_some());
 
     for c in "new_folder".chars() {
         Handler::handle_key(&mut app, create_key_event(KeyCode::Char(c)))
@@ -45,7 +45,7 @@ async fn test_flow_mkdir_via_modal() {
         .await
         .unwrap();
 
-    assert!(app.file_operations_modal.is_none());
+    assert!(app.file_operations_modal().is_none());
     assert!(test_dir.join("new_folder").exists());
     assert!(test_dir.join("new_folder").is_dir());
 
@@ -85,7 +85,7 @@ async fn test_flow_delete_file_via_modal() {
     Handler::handle_key(&mut app, create_key_event(KeyCode::Char('x')))
         .await
         .unwrap();
-    assert!(app.file_operations_modal.is_some());
+    assert!(app.file_operations_modal().is_some());
 
     Handler::handle_key(&mut app, create_key_event(KeyCode::Enter))
         .await
@@ -127,7 +127,7 @@ async fn test_flow_copy_file_via_modal() {
     Handler::handle_key(&mut app, create_key_event(KeyCode::Char('c')))
         .await
         .unwrap();
-    assert!(app.file_operations_modal.is_some());
+    assert!(app.file_operations_modal().is_some());
 
     for c in "destination.txt".chars() {
         Handler::handle_key(&mut app, create_key_event(KeyCode::Char(c)))
@@ -179,7 +179,7 @@ async fn test_flow_move_file_via_modal() {
     Handler::handle_key(&mut app, create_key_event(KeyCode::Char('m')))
         .await
         .unwrap();
-    assert!(app.file_operations_modal.is_some());
+    assert!(app.file_operations_modal().is_some());
 
     for c in "destination.txt".chars() {
         Handler::handle_key(&mut app, create_key_event(KeyCode::Char(c)))
@@ -231,7 +231,7 @@ async fn test_flow_purge_directory_via_modal() {
     Handler::handle_key(&mut app, create_key_event(KeyCode::Char('x')))
         .await
         .unwrap();
-    assert!(app.file_operations_modal.is_some());
+    assert!(app.file_operations_modal().is_some());
 
     Handler::handle_key(&mut app, create_key_event(KeyCode::Enter))
         .await
