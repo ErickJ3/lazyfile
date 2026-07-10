@@ -3,34 +3,12 @@
 use crate::app::{App, Handler};
 use crate::error::Result;
 use crate::ui::Layout;
-use crossterm::{
-    event::{self, DisableMouseCapture, EnableMouseCapture, Event},
-    execute,
-    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
-};
+use crossterm::event::{self, Event};
+use ratatui::DefaultTerminal;
 use ratatui::prelude::*;
-use std::io;
-
-/// Initialize
-fn setup_terminal() -> Result<()> {
-    enable_raw_mode()?;
-    let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
-    Ok(())
-}
-
-/// Restore to normal state
-fn restore_terminal() -> Result<()> {
-    disable_raw_mode()?;
-    let mut stdout = io::stdout();
-    execute!(stdout, LeaveAlternateScreen, DisableMouseCapture)?;
-    Ok(())
-}
 
 /// Main
-async fn run_app(app: &mut App) -> Result<()> {
-    let mut terminal = Terminal::new(CrosstermBackend::new(io::stdout()))?;
-
+async fn run_app(terminal: &mut DefaultTerminal, app: &mut App) -> Result<()> {
     while app.running {
         terminal.draw(|f| ui_render(f, app))?;
 
@@ -93,9 +71,13 @@ fn ui_render(f: &mut Frame, app: &App) {
 
 /// Start app.
 pub async fn start(mut app: App) -> Result<()> {
-    setup_terminal()?;
-    let res = run_app(&mut app).await;
-    restore_terminal()?;
+    // try_init/try_restore keep setup errors in the Result chain
+    // instead of panicking. Mouse capture is intentionally not
+    // enabled so the terminal keeps native text selection.
+    let mut terminal = ratatui::try_init()?;
+    let res = run_app(&mut terminal, &mut app).await;
+    let restored = ratatui::try_restore();
 
-    res
+    // An app error takes precedence over a restore error.
+    res.and(restored.map_err(Into::into))
 }
