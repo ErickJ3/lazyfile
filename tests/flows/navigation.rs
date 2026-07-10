@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use std::fs;
 
 #[tokio::test]
+#[ignore = "requires rclone daemon on localhost:5572"]
 async fn test_flow_create_remote_and_browse() {
     let client = create_test_client();
     let test_dir = get_test_dir("flow_browse");
@@ -76,6 +77,7 @@ async fn test_flow_create_remote_and_browse() {
 }
 
 #[tokio::test]
+#[ignore = "requires rclone daemon on localhost:5572"]
 async fn test_flow_deep_navigation() {
     let client = create_test_client();
     let test_dir = get_test_dir("flow_deep");
@@ -129,6 +131,7 @@ async fn test_flow_deep_navigation() {
 }
 
 #[tokio::test]
+#[ignore = "requires rclone daemon on localhost:5572"]
 async fn test_flow_panel_switching() {
     let client = create_test_client();
     let test_dir = get_test_dir("flow_switch");
@@ -181,6 +184,7 @@ async fn test_flow_panel_switching() {
 }
 
 #[tokio::test]
+#[ignore = "requires rclone daemon on localhost:5572"]
 async fn test_flow_quit() {
     let client = create_test_client();
     let mut app = App::new(client);
@@ -193,6 +197,7 @@ async fn test_flow_quit() {
 }
 
 #[tokio::test]
+#[ignore = "requires rclone daemon on localhost:5572"]
 async fn test_flow_quit_from_any_panel() {
     let client = create_test_client();
     let mut app = App::new(client);

@@ -5,6 +5,7 @@ use crate::common::{
 use std::fs;
 
 #[tokio::test]
+#[ignore = "requires rclone daemon on localhost:5572"]
 async fn test_mkdir_simple() {
     let client = create_test_client();
     setup_test_remote(&client).await;
@@ -28,6 +29,7 @@ async fn test_mkdir_simple() {
 }
 
 #[tokio::test]
+#[ignore = "requires rclone daemon on localhost:5572"]
 async fn test_mkdir_nested() {
     let client = create_test_client();
     setup_test_remote(&client).await;
@@ -48,6 +50,7 @@ async fn test_mkdir_nested() {
 }
 
 #[tokio::test]
+#[ignore = "requires rclone daemon on localhost:5572"]
 async fn test_mkdir_already_exists() {
     let client = create_test_client();
     setup_test_remote(&client).await;
@@ -68,6 +71,7 @@ async fn test_mkdir_already_exists() {
 }
 
 #[tokio::test]
+#[ignore = "requires rclone daemon on localhost:5572"]
 async fn test_mkdir_invalid_remote() {
     let client = create_test_client();
     setup_test_remote(&client).await;

@@ -2,6 +2,7 @@ use crate::common::{TEST_REMOTE, create_test_client, setup_test_remote, unique_r
 use std::collections::HashMap;
 
 #[tokio::test]
+#[ignore = "requires rclone daemon on localhost:5572"]
 async fn test_list_remotes() {
     let client = create_test_client();
     setup_test_remote(&client).await;
@@ -21,6 +22,7 @@ async fn test_list_remotes() {
 }
 
 #[tokio::test]
+#[ignore = "requires rclone daemon on localhost:5572"]
 async fn test_create_remote_local_type() {
     let client = create_test_client();
     let remote_name = unique_remote_name("test_create");
@@ -41,6 +43,7 @@ async fn test_create_remote_local_type() {
 }
 
 #[tokio::test]
+#[ignore = "requires rclone daemon on localhost:5572"]
 async fn test_create_remote_with_params() {
     let client = create_test_client();
     let remote_name = unique_remote_name("test_create_params");
@@ -59,6 +62,7 @@ async fn test_create_remote_with_params() {
 }
 
 #[tokio::test]
+#[ignore = "requires rclone daemon on localhost:5572"]
 async fn test_update_remote() {
     let client = create_test_client();
     let remote_name = unique_remote_name("test_update");
@@ -83,6 +87,7 @@ async fn test_update_remote() {
 }
 
 #[tokio::test]
+#[ignore = "requires rclone daemon on localhost:5572"]
 async fn test_delete_remote() {
     let client = create_test_client();
     let remote_name = unique_remote_name("test_delete");
@@ -108,6 +113,7 @@ async fn test_delete_remote() {
 }
 
 #[tokio::test]
+#[ignore = "requires rclone daemon on localhost:5572"]
 async fn test_delete_nonexistent_remote() {
     let client = create_test_client();
     let remote_name = "nonexistent_remote_xyz123";

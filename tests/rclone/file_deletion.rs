@@ -5,6 +5,7 @@ use crate::common::{
 use std::fs;
 
 #[tokio::test]
+#[ignore = "requires rclone daemon on localhost:5572"]
 async fn test_delete_file() {
     let client = create_test_client();
     setup_test_remote(&client).await;
@@ -31,6 +32,7 @@ async fn test_delete_file() {
 }
 
 #[tokio::test]
+#[ignore = "requires rclone daemon on localhost:5572"]
 async fn test_delete_file_in_subdirectory() {
     let client = create_test_client();
     setup_test_remote(&client).await;
@@ -58,6 +60,7 @@ async fn test_delete_file_in_subdirectory() {
 }
 
 #[tokio::test]
+#[ignore = "requires rclone daemon on localhost:5572"]
 async fn test_delete_nonexistent_file() {
     let client = create_test_client();
     setup_test_remote(&client).await;
@@ -75,6 +78,7 @@ async fn test_delete_nonexistent_file() {
 }
 
 #[tokio::test]
+#[ignore = "requires rclone daemon on localhost:5572"]
 async fn test_purge_directory() {
     let client = create_test_client();
     setup_test_remote(&client).await;
@@ -102,6 +106,7 @@ async fn test_purge_directory() {
 }
 
 #[tokio::test]
+#[ignore = "requires rclone daemon on localhost:5572"]
 async fn test_purge_empty_directory() {
     let client = create_test_client();
     setup_test_remote(&client).await;

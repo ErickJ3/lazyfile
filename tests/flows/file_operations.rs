@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use std::fs;
 
 #[tokio::test]
+#[ignore = "requires rclone daemon on localhost:5572"]
 async fn test_flow_mkdir_via_modal() {
     let client = create_test_client();
     let test_dir = get_test_dir("flow_mkdir");
@@ -54,6 +55,7 @@ async fn test_flow_mkdir_via_modal() {
 }
 
 #[tokio::test]
+#[ignore = "requires rclone daemon on localhost:5572"]
 async fn test_flow_delete_file_via_modal() {
     let client = create_test_client();
     let test_dir = get_test_dir("flow_delete");
@@ -99,6 +101,7 @@ async fn test_flow_delete_file_via_modal() {
 }
 
 #[tokio::test]
+#[ignore = "requires rclone daemon on localhost:5572"]
 async fn test_flow_copy_file_via_modal() {
     let client = create_test_client();
     let test_dir = get_test_dir("flow_copy");
@@ -151,6 +154,7 @@ async fn test_flow_copy_file_via_modal() {
 }
 
 #[tokio::test]
+#[ignore = "requires rclone daemon on localhost:5572"]
 async fn test_flow_move_file_via_modal() {
     let client = create_test_client();
     let test_dir = get_test_dir("flow_move");
@@ -199,6 +203,7 @@ async fn test_flow_move_file_via_modal() {
 }
 
 #[tokio::test]
+#[ignore = "requires rclone daemon on localhost:5572"]
 async fn test_flow_purge_directory_via_modal() {
     let client = create_test_client();
     let test_dir = get_test_dir("flow_purge");
@@ -245,6 +250,7 @@ async fn test_flow_purge_directory_via_modal() {
 }
 
 #[tokio::test]
+#[ignore = "requires rclone daemon on localhost:5572"]
 async fn test_flow_multiple_operations() {
     let client = create_test_client();
     let test_dir = get_test_dir("flow_multi");

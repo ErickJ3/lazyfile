@@ -5,6 +5,7 @@ use crate::common::{
 use std::fs;
 
 #[tokio::test]
+#[ignore = "requires rclone daemon on localhost:5572"]
 async fn test_copy_file_same_remote() {
     let client = create_test_client();
     setup_test_remote(&client).await;
@@ -41,6 +42,7 @@ async fn test_copy_file_same_remote() {
 }
 
 #[tokio::test]
+#[ignore = "requires rclone daemon on localhost:5572"]
 async fn test_copy_file_to_subdirectory() {
     let client = create_test_client();
     setup_test_remote(&client).await;
@@ -67,6 +69,7 @@ async fn test_copy_file_to_subdirectory() {
 }
 
 #[tokio::test]
+#[ignore = "requires rclone daemon on localhost:5572"]
 async fn test_copy_nonexistent_file() {
     let client = create_test_client();
     setup_test_remote(&client).await;
@@ -84,6 +87,7 @@ async fn test_copy_nonexistent_file() {
 }
 
 #[tokio::test]
+#[ignore = "requires rclone daemon on localhost:5572"]
 async fn test_move_file_same_remote() {
     let client = create_test_client();
     setup_test_remote(&client).await;
@@ -119,6 +123,7 @@ async fn test_move_file_same_remote() {
 }
 
 #[tokio::test]
+#[ignore = "requires rclone daemon on localhost:5572"]
 async fn test_move_file_rename() {
     let client = create_test_client();
     setup_test_remote(&client).await;
@@ -145,6 +150,7 @@ async fn test_move_file_rename() {
 }
 
 #[tokio::test]
+#[ignore = "requires rclone daemon on localhost:5572"]
 async fn test_move_file_to_subdirectory() {
     let client = create_test_client();
     setup_test_remote(&client).await;
@@ -172,6 +178,7 @@ async fn test_move_file_to_subdirectory() {
 }
 
 #[tokio::test]
+#[ignore = "requires rclone daemon on localhost:5572"]
 async fn test_move_nonexistent_file() {
     let client = create_test_client();
     setup_test_remote(&client).await;

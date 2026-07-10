@@ -6,6 +6,7 @@ use lazyfile::rclone::RcloneClient;
 use std::fs;
 
 #[tokio::test]
+#[ignore = "requires rclone daemon on localhost:5572"]
 async fn test_client_wrong_port() {
     let client =
         RcloneClient::new("localhost", 9999).expect("default reqwest client config is valid");
@@ -15,6 +16,7 @@ async fn test_client_wrong_port() {
 }
 
 #[tokio::test]
+#[ignore = "requires rclone daemon on localhost:5572"]
 async fn test_file_with_spaces_in_name() {
     let client = create_test_client();
     setup_test_remote(&client).await;
@@ -39,6 +41,7 @@ async fn test_file_with_spaces_in_name() {
 }
 
 #[tokio::test]
+#[ignore = "requires rclone daemon on localhost:5572"]
 async fn test_file_with_special_characters() {
     let client = create_test_client();
     setup_test_remote(&client).await;
@@ -56,6 +59,7 @@ async fn test_file_with_special_characters() {
 }
 
 #[tokio::test]
+#[ignore = "requires rclone daemon on localhost:5572"]
 async fn test_unicode_filenames() {
     let client = create_test_client();
     setup_test_remote(&client).await;
@@ -78,6 +82,7 @@ async fn test_unicode_filenames() {
 }
 
 #[tokio::test]
+#[ignore = "requires rclone daemon on localhost:5572"]
 async fn test_large_file_operations() {
     let client = create_test_client();
     setup_test_remote(&client).await;
@@ -109,6 +114,7 @@ async fn test_large_file_operations() {
 }
 
 #[tokio::test]
+#[ignore = "requires rclone daemon on localhost:5572"]
 async fn test_many_files() {
     let client = create_test_client();
     setup_test_remote(&client).await;
@@ -130,6 +136,7 @@ async fn test_many_files() {
 }
 
 #[tokio::test]
+#[ignore = "requires rclone daemon on localhost:5572"]
 async fn test_deeply_nested_directories() {
     let client = create_test_client();
     setup_test_remote(&client).await;

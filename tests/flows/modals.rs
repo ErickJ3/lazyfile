@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use std::fs;
 
 #[tokio::test]
+#[ignore = "requires rclone daemon on localhost:5572"]
 async fn test_flow_cancel_modal_with_escape() {
     let client = create_test_client();
     let test_dir = get_test_dir("flow_cancel");
@@ -53,6 +54,7 @@ async fn test_flow_cancel_modal_with_escape() {
 }
 
 #[tokio::test]
+#[ignore = "requires rclone daemon on localhost:5572"]
 async fn test_flow_modal_validation_error() {
     let client = create_test_client();
     let test_dir = get_test_dir("flow_error");
@@ -105,6 +107,7 @@ async fn test_flow_modal_validation_error() {
 }
 
 #[tokio::test]
+#[ignore = "requires rclone daemon on localhost:5572"]
 async fn test_flow_modal_backspace_clears_input() {
     let client = create_test_client();
     let test_dir = get_test_dir("flow_backspace");
@@ -162,6 +165,7 @@ async fn test_flow_modal_backspace_clears_input() {
 }
 
 #[tokio::test]
+#[ignore = "requires rclone daemon on localhost:5572"]
 async fn test_flow_copy_modal_with_existing_file() {
     let client = create_test_client();
     let test_dir = get_test_dir("flow_copy_existing");
