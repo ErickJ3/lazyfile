@@ -1,7 +1,7 @@
 //! Help widget.
 
 use crate::ui::styles;
-use ratatui::{prelude::*, widgets::Paragraph};
+use ratatui::{Frame, layout::Rect, widgets::Paragraph};
 
 /// Widget for displaying help text.
 pub struct HelpWidget;

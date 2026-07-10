@@ -1,7 +1,9 @@
 //! Confirmation modal widget for delete operations.
 
 use ratatui::{
-    prelude::*,
+    Frame,
+    layout::{Alignment, Constraint, Direction, Layout, Rect},
+    style::{Color, Style},
     widgets::{Block, Borders, Clear, Paragraph},
 };
 
