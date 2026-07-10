@@ -28,16 +28,16 @@ impl RcloneClient {
     /// # Arguments
     /// * `host` - Host address of rclone daemon (e.g., "localhost")
     /// * `port` - Port number of rclone daemon (e.g., 5572)
-    pub fn new(host: &str, port: u16) -> Self {
+    ///
+    /// # Errors
+    /// Returns error if the HTTP client cannot be constructed, e.g.
+    /// when the system TLS or DNS resolver configuration fails to
+    /// load.
+    pub fn new(host: &str, port: u16) -> Result<Self> {
         let base_url = format!("http://{}:{}", host, port);
         trace!(base_url = %base_url, "creating RcloneClient");
-        // INVARIANT: builder only fails with invalid TLS config;
-        // default TLS backend is always valid.
-        let client = Client::builder()
-            .timeout(REQUEST_TIMEOUT)
-            .build()
-            .expect("default reqwest TLS config is valid");
-        Self { base_url, client }
+        let client = Client::builder().timeout(REQUEST_TIMEOUT).build()?;
+        Ok(Self { base_url, client })
     }
 
     /// Sends a POST request with a JSON body, returning the

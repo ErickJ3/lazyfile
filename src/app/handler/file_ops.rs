@@ -190,7 +190,7 @@ mod tests {
     use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyEventState, KeyModifiers};
 
     fn create_test_client() -> RcloneClient {
-        RcloneClient::new("localhost", 5572)
+        RcloneClient::new("localhost", 5572).expect("default reqwest client config is valid")
     }
 
     fn create_key_event(code: KeyCode) -> KeyEvent {

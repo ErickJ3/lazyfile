@@ -7,7 +7,8 @@ use std::fs;
 
 #[tokio::test]
 async fn test_client_wrong_port() {
-    let client = RcloneClient::new("localhost", 9999);
+    let client =
+        RcloneClient::new("localhost", 9999).expect("default reqwest client config is valid");
 
     let result = client.list_remotes().await;
     assert!(result.is_err(), "Connection to wrong port should fail");
