@@ -108,29 +108,17 @@ impl Handler {
         };
         let remote = remote.clone();
 
-        match modal.operation {
+        let result = match modal.operation {
             crate::ui::FileOperationType::DeleteFile => {
                 info!(file = %modal.file_name, "deleting file");
-                if let Err(e) = app.client.delete_file(&remote, &modal.file_name).await {
-                    app.modal = Some(ActiveModal::FileOperation(FileOperationsModal {
-                        error: Some(format!("Error: {}", e)),
-                        ..modal
-                    }));
-                    return Ok(());
-                }
+                app.client.delete_file(&remote, &modal.file_name).await
             }
             crate::ui::FileOperationType::DeleteDirectory => {
                 info!(
                     dir = %modal.file_name,
                     "purging directory"
                 );
-                if let Err(e) = app.client.purge(&remote, &modal.file_name).await {
-                    app.modal = Some(ActiveModal::FileOperation(FileOperationsModal {
-                        error: Some(format!("Error: {}", e)),
-                        ..modal
-                    }));
-                    return Ok(());
-                }
+                app.client.purge(&remote, &modal.file_name).await
             }
             crate::ui::FileOperationType::Mkdir => {
                 let new_path = if modal.current_path == "/" {
@@ -139,13 +127,7 @@ impl Handler {
                     format!("{}/{}", modal.current_path, modal.input)
                 };
                 info!(path = %new_path, "creating directory");
-                if let Err(e) = app.client.mkdir(&remote, &new_path).await {
-                    app.modal = Some(ActiveModal::FileOperation(FileOperationsModal {
-                        error: Some(format!("Error: {}", e)),
-                        ..modal
-                    }));
-                    return Ok(());
-                }
+                app.client.mkdir(&remote, &new_path).await
             }
             crate::ui::FileOperationType::Copy => {
                 info!(
@@ -153,17 +135,9 @@ impl Handler {
                     dst = %modal.input,
                     "copying file"
                 );
-                if let Err(e) = app
-                    .client
+                app.client
                     .copy_file(&remote, &modal.file_name, &remote, &modal.input)
                     .await
-                {
-                    app.modal = Some(ActiveModal::FileOperation(FileOperationsModal {
-                        error: Some(format!("Error: {}", e)),
-                        ..modal
-                    }));
-                    return Ok(());
-                }
             }
             crate::ui::FileOperationType::Move => {
                 info!(
@@ -171,18 +145,18 @@ impl Handler {
                     dst = %modal.input,
                     "moving file"
                 );
-                if let Err(e) = app
-                    .client
+                app.client
                     .move_file(&remote, &modal.file_name, &remote, &modal.input)
                     .await
-                {
-                    app.modal = Some(ActiveModal::FileOperation(FileOperationsModal {
-                        error: Some(format!("Error: {}", e)),
-                        ..modal
-                    }));
-                    return Ok(());
-                }
             }
+        };
+
+        if let Err(e) = result {
+            app.modal = Some(ActiveModal::FileOperation(FileOperationsModal {
+                error: Some(format!("Error: {}", e)),
+                ..modal
+            }));
+            return Ok(());
         }
 
         app.load_files().await?;
