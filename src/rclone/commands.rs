@@ -20,5 +20,3 @@ pub const CONFIG_CREATE: &str = "config/create";
 pub const CONFIG_UPDATE: &str = "config/update";
 /// Delete a remote configuration.
 pub const CONFIG_DELETE: &str = "config/delete";
-/// Sync/copy a directory.
-pub const SYNC_COPY: &str = "sync/copy";
