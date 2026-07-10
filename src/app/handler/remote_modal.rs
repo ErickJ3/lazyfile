@@ -408,4 +408,23 @@ mod tests {
         let modal = app.create_remote_modal().unwrap();
         assert!(modal.error.is_none());
     }
+
+    #[tokio::test]
+    async fn test_open_modal_keys_ignored_while_confirm_open() {
+        // 'a' opens the create-remote modal only when no modal is open;
+        // with the confirmation active the key must not replace it.
+        let client = create_test_client();
+        let mut app = App::new(client);
+        app.focused_panel = crate::app::state::Panel::Remotes;
+        app.modal = Some(ActiveModal::ConfirmDeleteRemote {
+            remote: "test".to_string(),
+            modal: ConfirmModal::new("Test", "Test message".to_string()),
+        });
+
+        let key = create_key_event(KeyCode::Char('a'));
+        Handler::handle_key(&mut app, key).await.unwrap();
+
+        assert!(app.confirm_modal().is_some());
+        assert!(app.create_remote_modal().is_none());
+    }
 }

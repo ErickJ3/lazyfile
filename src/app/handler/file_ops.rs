@@ -446,4 +446,40 @@ mod tests {
         let modal = app.file_operations_modal().unwrap();
         assert!(modal.input.is_empty());
     }
+
+    #[tokio::test]
+    async fn test_open_modal_keys_ignored_while_file_operation_open() {
+        // 'd' opens the delete-remote confirmation only when no modal is
+        // open; with a file operation active the key routes to the modal
+        // handler instead of replacing it.
+        let client = create_test_client();
+        let mut app = App::new(client);
+        app.focused_panel = Panel::Remotes;
+        app.remotes = vec!["remote1".to_string()];
+        app.modal = Some(ActiveModal::FileOperation(
+            FileOperationsModal::delete_file("test.txt".to_string()),
+        ));
+
+        let key = create_key_event(KeyCode::Char('d'));
+        Handler::handle_key(&mut app, key).await.unwrap();
+
+        assert!(app.file_operations_modal().is_some());
+        assert!(app.confirm_modal().is_none());
+    }
+
+    #[tokio::test]
+    async fn test_single_modal_slot_replaces_previous() {
+        let client = create_test_client();
+        let mut app = App::new(client);
+        app.modal = Some(ActiveModal::CreateRemote(
+            crate::ui::CreateRemoteModal::new(crate::ui::CreateRemoteMode::Create),
+        ));
+
+        app.modal = Some(ActiveModal::FileOperation(FileOperationsModal::mkdir(
+            "/".to_string(),
+        )));
+
+        assert!(app.create_remote_modal().is_none());
+        assert!(app.file_operations_modal().is_some());
+    }
 }
