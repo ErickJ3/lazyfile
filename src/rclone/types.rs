@@ -11,14 +11,6 @@ pub struct ListRemotesResponse {
     pub remotes: Option<Vec<String>>,
 }
 
-/// Response from rclone `config/dump` call
-#[allow(dead_code)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ConfigDumpResponse {
-    #[serde(flatten)]
-    pub remotes: HashMap<String, HashMap<String, String>>,
-}
-
 /// Parameters for rclone `config/create` call.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConfigCreateRequest {
