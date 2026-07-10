@@ -172,7 +172,7 @@ mod tests {
     use super::*;
 
     fn create_test_client() -> RcloneClient {
-        RcloneClient::new("localhost", 5572)
+        RcloneClient::new("localhost", 5572).expect("default reqwest client config is valid")
     }
 
     #[test]

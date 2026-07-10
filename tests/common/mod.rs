@@ -42,7 +42,7 @@ pub fn cleanup_test_dir(test_name: &str) {
 }
 
 pub fn create_test_client() -> RcloneClient {
-    RcloneClient::new("localhost", 5572)
+    RcloneClient::new("localhost", 5572).expect("default reqwest client config is valid")
 }
 
 pub fn unique_remote_name(prefix: &str) -> String {

@@ -4,14 +4,14 @@ use crate::error::{LazyFileError, Result};
 use crate::rclone::commands;
 use crate::rclone::types::{
     ConfigCreateRequest, ConfigDeleteRequest, ConfigUpdateRequest, CopyFileRequest,
-    DeleteFileRequest, FileItem, ListFilesResponse, MkdirRequest, MoveFileRequest, PurgeRequest,
-    SyncCopyRequest,
+    DeleteFileRequest, FileItem, ListFilesResponse, ListRemotesResponse, MkdirRequest,
+    MoveFileRequest, PurgeRequest, SyncCopyRequest,
 };
 use reqwest::Client;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::time::Duration;
-use tracing::{debug, error, info, trace};
+use tracing::{debug, error, info, trace, warn};
 
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 
@@ -28,16 +28,16 @@ impl RcloneClient {
     /// # Arguments
     /// * `host` - Host address of rclone daemon (e.g., "localhost")
     /// * `port` - Port number of rclone daemon (e.g., 5572)
-    pub fn new(host: &str, port: u16) -> Self {
+    ///
+    /// # Errors
+    /// Returns error if the HTTP client cannot be constructed, e.g.
+    /// when the system TLS or DNS resolver configuration fails to
+    /// load.
+    pub fn new(host: &str, port: u16) -> Result<Self> {
         let base_url = format!("http://{}:{}", host, port);
         trace!(base_url = %base_url, "creating RcloneClient");
-        // INVARIANT: builder only fails with invalid TLS config;
-        // default TLS backend is always valid.
-        let client = Client::builder()
-            .timeout(REQUEST_TIMEOUT)
-            .build()
-            .expect("default reqwest TLS config is valid");
-        Self { base_url, client }
+        let client = Client::builder().timeout(REQUEST_TIMEOUT).build()?;
+        Ok(Self { base_url, client })
     }
 
     /// Sends a POST request with a JSON body, returning the
@@ -91,19 +91,10 @@ impl RcloneClient {
             .await?;
         trace!(body = %body, "list_remotes response");
 
-        let json: serde_json::Value = serde_json::from_str(&body)?;
-
-        if let Some(remotes) = json.get("remotes")
-            && let Ok(vec) = serde_json::from_value::<Vec<String>>(remotes.clone())
-        {
-            info!(count = vec.len(), "loaded remotes");
-            return Ok(vec);
-        }
-
-        Err(LazyFileError::RcloneApi {
-            endpoint: commands::LIST_REMOTES,
-            message: "unexpected response format".into(),
-        })
+        let remotes = parse_list_remotes(&body)
+            .inspect_err(|e| warn!(error = %e, "malformed list_remotes response"))?;
+        info!(count = remotes.len(), "loaded remotes");
+        Ok(remotes)
     }
 
     /// Lists files in a remote path.
@@ -124,15 +115,10 @@ impl RcloneClient {
             .await?;
         trace!(body = %body, "list_files response");
 
-        let json: serde_json::Value = serde_json::from_str(&body)?;
-        if let Ok(resp) = serde_json::from_value::<ListFilesResponse>(json) {
-            let items = resp.list.unwrap_or_default();
-            info!(count = items.len(), "loaded files");
-            return Ok(items);
-        }
-
-        debug!("no items found in response");
-        Ok(Vec::new())
+        let items = parse_list_files(&body)
+            .inspect_err(|e| warn!(error = %e, "malformed list_files response"))?;
+        info!(count = items.len(), "loaded files");
+        Ok(items)
     }
 
     /// Creates a new remote configuration.
@@ -324,5 +310,105 @@ impl RcloneClient {
         self.post_command(commands::SYNC_COPY, &request).await?;
         info!("sync copy completed");
         Ok(())
+    }
+}
+
+/// Parses a `config/listremotes` response body into remote names.
+///
+/// A missing or `null` `remotes` field means no remotes are
+/// configured; anything else that does not match the response shape
+/// is an error.
+fn parse_list_remotes(body: &str) -> Result<Vec<String>> {
+    let resp: ListRemotesResponse =
+        serde_json::from_str(body).map_err(|e| LazyFileError::RcloneApi {
+            endpoint: commands::LIST_REMOTES,
+            message: format!("unexpected response format: {}", e),
+        })?;
+    Ok(resp.remotes.unwrap_or_default())
+}
+
+/// Parses an `operations/list` response body into file items.
+///
+/// A missing or `null` `list` field is a valid empty directory;
+/// anything that does not match the response shape is an error.
+fn parse_list_files(body: &str) -> Result<Vec<FileItem>> {
+    let resp: ListFilesResponse =
+        serde_json::from_str(body).map_err(|e| LazyFileError::RcloneApi {
+            endpoint: commands::LIST_FILES,
+            message: format!("unexpected response format: {}", e),
+        })?;
+    Ok(resp.list.unwrap_or_default())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_valid_file_list() {
+        let body = r#"{"list":[{"Name":"a.txt","Size":10,"ModTime":"2024-01-01T00:00:00Z","IsDir":false}]}"#;
+        let items = parse_list_files(body).unwrap();
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0].name(), "a.txt");
+    }
+
+    #[test]
+    fn treats_null_list_as_empty() {
+        let items = parse_list_files(r#"{"list":null}"#).unwrap();
+        assert!(items.is_empty());
+    }
+
+    #[test]
+    fn treats_missing_list_as_empty() {
+        let items = parse_list_files("{}").unwrap();
+        assert!(items.is_empty());
+    }
+
+    #[test]
+    fn rejects_malformed_body() {
+        let err = parse_list_files("not json").unwrap_err();
+        assert!(matches!(
+            err,
+            LazyFileError::RcloneApi {
+                endpoint: commands::LIST_FILES,
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn rejects_wrong_item_shape() {
+        let err = parse_list_files(r#"{"list":[{"unexpected":true}]}"#).unwrap_err();
+        assert!(matches!(err, LazyFileError::RcloneApi { .. }));
+    }
+
+    #[test]
+    fn parses_remote_names() {
+        let remotes = parse_list_remotes(r#"{"remotes":["gdrive","s3"]}"#).unwrap();
+        assert_eq!(remotes, vec!["gdrive".to_string(), "s3".to_string()]);
+    }
+
+    #[test]
+    fn treats_null_remotes_as_empty() {
+        let remotes = parse_list_remotes(r#"{"remotes":null}"#).unwrap();
+        assert!(remotes.is_empty());
+    }
+
+    #[test]
+    fn treats_missing_remotes_as_empty() {
+        let remotes = parse_list_remotes("{}").unwrap();
+        assert!(remotes.is_empty());
+    }
+
+    #[test]
+    fn rejects_malformed_remotes_body() {
+        let err = parse_list_remotes(r#"{"remotes":"oops"}"#).unwrap_err();
+        assert!(matches!(
+            err,
+            LazyFileError::RcloneApi {
+                endpoint: commands::LIST_REMOTES,
+                ..
+            }
+        ));
     }
 }

@@ -4,10 +4,11 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Response from rclone `config/listremotes` call
-#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ListRemotesResponse {
-    pub remotes: Vec<String>,
+    /// Configured remote names. None when no remotes exist
+    /// (rclone marshals an empty Go slice as null).
+    pub remotes: Option<Vec<String>>,
 }
 
 /// Response from rclone `config/dump` call

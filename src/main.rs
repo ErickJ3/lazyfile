@@ -18,7 +18,7 @@ async fn main() -> error::Result<()> {
 
     tracing::debug!("Starting LazyFile");
 
-    let client = RcloneClient::new(&args.host, args.port);
+    let client = RcloneClient::new(&args.host, args.port)?;
     let mut app = App::new(client);
     app.load_remotes().await?;
 
