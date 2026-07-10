@@ -107,9 +107,8 @@ impl RcloneClient {
     pub async fn list_files(&self, remote: &str, path: &str) -> Result<Vec<FileItem>> {
         validate_remote_name(remote)?;
         validate_path(path)?;
-        let fs = format!("{}:", remote);
-        let remote_path = path.trim_start_matches('/');
-        debug!(remote, path = remote_path, "listing files");
+        let (fs, remote_path) = fs_path(remote, path);
+        debug!(remote, path = %remote_path, "listing files");
 
         let body = self
             .post_json(
@@ -193,15 +192,14 @@ impl RcloneClient {
     pub async fn mkdir(&self, remote: &str, path: &str) -> Result<()> {
         validate_remote_name(remote)?;
         validate_path(path)?;
-        let fs = format!("{}:", remote);
-        let remote_path = path.trim_start_matches('/');
-        debug!(remote, path = remote_path, "creating directory");
+        let (fs, remote_path) = fs_path(remote, path);
+        debug!(remote, path = %remote_path, "creating directory");
         let request = MkdirRequest {
             fs,
-            remote: remote_path.to_string(),
+            remote: remote_path,
         };
         self.post_command(commands::MKDIR, &request).await?;
-        info!(remote, path = remote_path, "directory created");
+        info!(remote, path = %request.remote, "directory created");
         Ok(())
     }
 
@@ -213,15 +211,14 @@ impl RcloneClient {
     pub async fn delete_file(&self, remote: &str, path: &str) -> Result<()> {
         validate_remote_name(remote)?;
         validate_path(path)?;
-        let fs = format!("{}:", remote);
-        let remote_path = path.trim_start_matches('/');
-        debug!(remote, path = remote_path, "deleting file");
+        let (fs, remote_path) = fs_path(remote, path);
+        debug!(remote, path = %remote_path, "deleting file");
         let request = DeleteFileRequest {
             fs,
-            remote: remote_path.to_string(),
+            remote: remote_path,
         };
         self.post_command(commands::DELETE_FILE, &request).await?;
-        info!(remote, path = remote_path, "file deleted");
+        info!(remote, path = %request.remote, "file deleted");
         Ok(())
     }
 
@@ -233,15 +230,14 @@ impl RcloneClient {
     pub async fn purge(&self, remote: &str, path: &str) -> Result<()> {
         validate_remote_name(remote)?;
         validate_path(path)?;
-        let fs = format!("{}:", remote);
-        let remote_path = path.trim_start_matches('/');
-        debug!(remote, path = remote_path, "purging directory");
+        let (fs, remote_path) = fs_path(remote, path);
+        debug!(remote, path = %remote_path, "purging directory");
         let request = PurgeRequest {
             fs,
-            remote: remote_path.to_string(),
+            remote: remote_path,
         };
         self.post_command(commands::PURGE, &request).await?;
-        info!(remote, path = remote_path, "directory purged");
+        info!(remote, path = %request.remote, "directory purged");
         Ok(())
     }
 
@@ -257,26 +253,14 @@ impl RcloneClient {
         dst_remote: &str,
         dst_path: &str,
     ) -> Result<()> {
-        validate_remote_name(src_remote)?;
-        validate_remote_name(dst_remote)?;
-        validate_path(src_path)?;
-        validate_path(dst_path)?;
-        let src = src_path.trim_start_matches('/');
-        let dst = dst_path.trim_start_matches('/');
-        debug!(
+        self.transfer_file(
+            commands::COPY_FILE,
             src_remote,
-            src_path = src,
+            src_path,
             dst_remote,
-            dst_path = dst,
-            "copying file"
-        );
-        let request = FileTransferRequest {
-            src_fs: format!("{}:", src_remote),
-            src_remote: src.to_string(),
-            dst_fs: format!("{}:", dst_remote),
-            dst_remote: dst.to_string(),
-        };
-        self.post_command(commands::COPY_FILE, &request).await?;
+            dst_path,
+        )
+        .await?;
         info!("file copied");
         Ok(())
     }
@@ -293,29 +277,58 @@ impl RcloneClient {
         dst_remote: &str,
         dst_path: &str,
     ) -> Result<()> {
+        self.transfer_file(
+            commands::MOVE_FILE,
+            src_remote,
+            src_path,
+            dst_remote,
+            dst_path,
+        )
+        .await?;
+        info!("file moved");
+        Ok(())
+    }
+
+    /// Shared implementation for `copyfile` and `movefile`, which
+    /// take identical parameters.
+    async fn transfer_file(
+        &self,
+        endpoint: &'static str,
+        src_remote: &str,
+        src_path: &str,
+        dst_remote: &str,
+        dst_path: &str,
+    ) -> Result<()> {
         validate_remote_name(src_remote)?;
         validate_remote_name(dst_remote)?;
         validate_path(src_path)?;
         validate_path(dst_path)?;
-        let src = src_path.trim_start_matches('/');
-        let dst = dst_path.trim_start_matches('/');
+        let (src_fs, src) = fs_path(src_remote, src_path);
+        let (dst_fs, dst) = fs_path(dst_remote, dst_path);
         debug!(
+            endpoint,
             src_remote,
-            src_path = src,
+            src_path = %src,
             dst_remote,
-            dst_path = dst,
-            "moving file"
+            dst_path = %dst,
+            "transferring file"
         );
         let request = FileTransferRequest {
-            src_fs: format!("{}:", src_remote),
-            src_remote: src.to_string(),
-            dst_fs: format!("{}:", dst_remote),
-            dst_remote: dst.to_string(),
+            src_fs,
+            src_remote: src,
+            dst_fs,
+            dst_remote: dst,
         };
-        self.post_command(commands::MOVE_FILE, &request).await?;
-        info!("file moved");
-        Ok(())
+        self.post_command(endpoint, &request).await
     }
+}
+
+/// Normalizes a remote name and path into the fs string and remote
+/// path fields the rclone API expects.
+fn fs_path(remote: &str, path: &str) -> (String, String) {
+    let fs = format!("{}:", remote);
+    let remote_path = path.trim_start_matches('/').to_string();
+    (fs, remote_path)
 }
 
 /// Parses a `config/listremotes` response body into remote names.
@@ -415,6 +428,18 @@ mod tests {
                 ..
             }
         ));
+    }
+
+    #[test]
+    fn fs_path_strips_leading_slashes() {
+        assert_eq!(
+            fs_path("gdrive", "/docs/file.txt"),
+            ("gdrive:".to_string(), "docs/file.txt".to_string())
+        );
+        assert_eq!(
+            fs_path("gdrive", ""),
+            ("gdrive:".to_string(), String::new())
+        );
     }
 
     #[test]
