@@ -3,9 +3,8 @@
 use crate::error::{LazyFileError, Result};
 use crate::rclone::commands;
 use crate::rclone::types::{
-    ConfigCreateRequest, ConfigDeleteRequest, ConfigUpdateRequest, CopyFileRequest,
-    DeleteFileRequest, FileItem, ListFilesResponse, ListRemotesResponse, MkdirRequest,
-    MoveFileRequest, PurgeRequest,
+    ConfigCreateRequest, ConfigDeleteRequest, ConfigUpdateRequest, DeleteFileRequest, FileItem,
+    FileTransferRequest, ListFilesResponse, ListRemotesResponse, MkdirRequest, PurgeRequest,
 };
 use crate::rclone::validate::{validate_host, validate_path, validate_remote_name};
 use reqwest::Client;
@@ -271,7 +270,7 @@ impl RcloneClient {
             dst_path = dst,
             "copying file"
         );
-        let request = CopyFileRequest {
+        let request = FileTransferRequest {
             src_fs: format!("{}:", src_remote),
             src_remote: src.to_string(),
             dst_fs: format!("{}:", dst_remote),
@@ -307,7 +306,7 @@ impl RcloneClient {
             dst_path = dst,
             "moving file"
         );
-        let request = MoveFileRequest {
+        let request = FileTransferRequest {
             src_fs: format!("{}:", src_remote),
             src_remote: src.to_string(),
             dst_fs: format!("{}:", dst_remote),

@@ -56,22 +56,10 @@ pub struct PurgeRequest {
     pub remote: String,
 }
 
-/// Parameters for rclone `operations/copyfile` call.
+/// Parameters for rclone `operations/copyfile` and
+/// `operations/movefile` calls, which share the same shape.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CopyFileRequest {
-    #[serde(rename = "srcFs")]
-    pub src_fs: String,
-    #[serde(rename = "srcRemote")]
-    pub src_remote: String,
-    #[serde(rename = "dstFs")]
-    pub dst_fs: String,
-    #[serde(rename = "dstRemote")]
-    pub dst_remote: String,
-}
-
-/// Parameters for rclone `operations/movefile` call.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MoveFileRequest {
+pub struct FileTransferRequest {
     #[serde(rename = "srcFs")]
     pub src_fs: String,
     #[serde(rename = "srcRemote")]
