@@ -4,7 +4,7 @@ mod file_ops;
 mod navigation;
 mod remote_modal;
 
-use super::state::{App, Panel};
+use super::state::{ActiveModal, App, Panel};
 use crate::error::Result;
 use crossterm::event::{KeyCode, KeyEvent, KeyEventKind};
 use tracing::{debug, info};
@@ -25,16 +25,17 @@ impl Handler {
             return Ok(());
         }
 
-        if app.file_operations_modal.is_some() {
-            return Self::handle_file_operations_key(app, key).await;
-        }
-
-        if app.confirm_modal.is_some() {
-            return Self::handle_confirm_key(app, key).await;
-        }
-
-        if app.create_remote_modal.is_some() {
-            return Self::handle_modal_key(app, key).await;
+        match app.modal {
+            Some(ActiveModal::FileOperation(_)) => {
+                return Self::handle_file_operations_key(app, key).await;
+            }
+            Some(ActiveModal::ConfirmDeleteRemote { .. }) => {
+                return Self::handle_confirm_key(app, key).await;
+            }
+            Some(ActiveModal::CreateRemote(_)) => {
+                return Self::handle_modal_key(app, key).await;
+            }
+            None => {}
         }
 
         match key.code {
@@ -44,8 +45,8 @@ impl Handler {
             }
             KeyCode::Char('a') if matches!(app.focused_panel, Panel::Remotes) => {
                 debug!("opening create remote modal");
-                app.create_remote_modal = Some(crate::ui::CreateRemoteModal::new(
-                    crate::ui::CreateRemoteMode::Create,
+                app.modal = Some(ActiveModal::CreateRemote(
+                    crate::ui::CreateRemoteModal::new(crate::ui::CreateRemoteMode::Create),
                 ));
             }
             KeyCode::Char('e') if matches!(app.focused_panel, Panel::Remotes) => {

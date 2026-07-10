@@ -308,8 +308,7 @@ mod tests {
 
         assert_eq!(app.running, initial_state);
         assert_eq!(app.focused_panel, initial_panel);
-        assert!(app.create_remote_modal.is_none());
-        assert!(app.file_operations_modal.is_none());
+        assert!(app.modal.is_none());
     }
 
     #[tokio::test]

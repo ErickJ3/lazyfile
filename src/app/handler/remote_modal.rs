@@ -1,7 +1,7 @@
 //! Remote modal handling (create, edit, delete, confirm).
 
 use super::Handler;
-use crate::app::state::App;
+use crate::app::state::{ActiveModal, App};
 use crate::error::Result;
 use crate::ui::{ConfirmModal, CreateRemoteModal, CreateRemoteMode};
 use crossterm::event::{KeyCode, KeyEvent};
@@ -11,11 +11,11 @@ use tracing::{debug, info};
 impl Handler {
     /// Handles keyboard input while the create/edit modal is open.
     pub(super) async fn handle_modal_key(app: &mut App, key: KeyEvent) -> Result<()> {
-        if let Some(ref mut modal) = app.create_remote_modal {
+        if let Some(ActiveModal::CreateRemote(ref mut modal)) = app.modal {
             match key.code {
                 KeyCode::Esc => {
                     debug!("closing create remote modal");
-                    app.create_remote_modal = None;
+                    app.modal = None;
                 }
                 KeyCode::Tab => {
                     modal.next_field();
@@ -42,49 +42,51 @@ impl Handler {
 
     /// Handles modal submission.
     async fn handle_modal_submit(app: &mut App) -> Result<()> {
-        if let Some(modal) = app.create_remote_modal.take() {
-            if !modal.is_valid() {
-                app.create_remote_modal = Some(CreateRemoteModal {
-                    error: Some("Name and Type are required".to_string()),
-                    ..modal
-                });
-                return Ok(());
-            }
+        let Some(ActiveModal::CreateRemote(modal)) = app.modal.take() else {
+            return Ok(());
+        };
 
-            let mut params = HashMap::new();
-            if !modal.path.is_empty() {
-                params.insert("path".to_string(), modal.path.clone());
-            }
-
-            let name = modal.name.clone();
-            let remote_type = modal.remote_type.clone();
-            let mode = modal.mode;
-
-            match mode {
-                CreateRemoteMode::Create => {
-                    info!(remote = %name, "creating remote");
-                    if let Err(e) = app.client.create_remote(&name, &remote_type, params).await {
-                        app.create_remote_modal = Some(CreateRemoteModal {
-                            error: Some(format!("Error: {}", e)),
-                            ..modal
-                        });
-                        return Ok(());
-                    }
-                }
-                CreateRemoteMode::Edit => {
-                    info!(remote = %name, "updating remote");
-                    if let Err(e) = app.client.update_remote(&name, params).await {
-                        app.create_remote_modal = Some(CreateRemoteModal {
-                            error: Some(format!("Error: {}", e)),
-                            ..modal
-                        });
-                        return Ok(());
-                    }
-                }
-            }
-
-            app.load_remotes().await?;
+        if !modal.is_valid() {
+            app.modal = Some(ActiveModal::CreateRemote(CreateRemoteModal {
+                error: Some("Name and Type are required".to_string()),
+                ..modal
+            }));
+            return Ok(());
         }
+
+        let mut params = HashMap::new();
+        if !modal.path.is_empty() {
+            params.insert("path".to_string(), modal.path.clone());
+        }
+
+        let name = modal.name.clone();
+        let remote_type = modal.remote_type.clone();
+        let mode = modal.mode;
+
+        match mode {
+            CreateRemoteMode::Create => {
+                info!(remote = %name, "creating remote");
+                if let Err(e) = app.client.create_remote(&name, &remote_type, params).await {
+                    app.modal = Some(ActiveModal::CreateRemote(CreateRemoteModal {
+                        error: Some(format!("Error: {}", e)),
+                        ..modal
+                    }));
+                    return Ok(());
+                }
+            }
+            CreateRemoteMode::Edit => {
+                info!(remote = %name, "updating remote");
+                if let Err(e) = app.client.update_remote(&name, params).await {
+                    app.modal = Some(ActiveModal::CreateRemote(CreateRemoteModal {
+                        error: Some(format!("Error: {}", e)),
+                        ..modal
+                    }));
+                    return Ok(());
+                }
+            }
+        }
+
+        app.load_remotes().await?;
         Ok(())
     }
 
@@ -95,7 +97,7 @@ impl Handler {
             let modal = CreateRemoteModal::new(CreateRemoteMode::Edit)
                 .with_name(remote.clone())
                 .with_type("local".to_string());
-            app.create_remote_modal = Some(modal);
+            app.modal = Some(ActiveModal::CreateRemote(modal));
         }
         Ok(())
     }
@@ -104,22 +106,20 @@ impl Handler {
     pub(super) fn handle_delete_remote(app: &mut App) {
         if let Some(remote) = app.remotes.get(app.remotes_selected) {
             debug!(remote = %remote, "opening delete confirmation");
-            app.pending_delete_remote = Some(remote.clone());
-            app.confirm_modal = Some(ConfirmModal::new(
-                "Delete Remote",
-                format!("Delete '{}'?", remote),
-            ));
+            app.modal = Some(ActiveModal::ConfirmDeleteRemote {
+                remote: remote.clone(),
+                modal: ConfirmModal::new("Delete Remote", format!("Delete '{}'?", remote)),
+            });
         }
     }
 
     /// Handles confirmation modal input.
     pub(super) async fn handle_confirm_key(app: &mut App, key: KeyEvent) -> Result<()> {
-        if let Some(ref mut modal) = app.confirm_modal {
+        if let Some(ActiveModal::ConfirmDeleteRemote { ref mut modal, .. }) = app.modal {
             match key.code {
                 KeyCode::Esc => {
                     debug!("cancelling delete");
-                    app.confirm_modal = None;
-                    app.pending_delete_remote = None;
+                    app.modal = None;
                 }
                 KeyCode::Tab | KeyCode::Right | KeyCode::Left => {
                     modal.toggle();
@@ -131,14 +131,16 @@ impl Handler {
                     }
                 }
                 KeyCode::Enter => {
-                    if modal.is_confirmed()
-                        && let Some(remote) = app.pending_delete_remote.take()
+                    // Enter always closes the modal; the delete only runs
+                    // when "Yes" is selected.
+                    let confirmed = modal.is_confirmed();
+                    if let Some(ActiveModal::ConfirmDeleteRemote { remote, .. }) = app.modal.take()
+                        && confirmed
                     {
                         info!(remote = %remote, "deleting remote");
                         app.client.delete_remote(&remote).await?;
                         app.load_remotes().await?;
                     }
-                    app.confirm_modal = None;
                 }
                 _ => {}
             }
@@ -171,13 +173,13 @@ mod tests {
         let client = create_test_client();
         let mut app = App::new(client);
         app.focused_panel = crate::app::state::Panel::Remotes;
-        assert!(app.create_remote_modal.is_none());
+        assert!(app.create_remote_modal().is_none());
 
         let key = create_key_event(KeyCode::Char('a'));
         Handler::handle_key(&mut app, key).await.unwrap();
 
-        assert!(app.create_remote_modal.is_some());
-        let modal = app.create_remote_modal.as_ref().unwrap();
+        assert!(app.create_remote_modal().is_some());
+        let modal = app.create_remote_modal().unwrap();
         assert_eq!(modal.mode, CreateRemoteMode::Create);
     }
 
@@ -190,7 +192,7 @@ mod tests {
         let key = create_key_event(KeyCode::Char('a'));
         Handler::handle_key(&mut app, key).await.unwrap();
 
-        assert!(app.create_remote_modal.is_none());
+        assert!(app.create_remote_modal().is_none());
     }
 
     #[tokio::test]
@@ -200,13 +202,13 @@ mod tests {
         app.focused_panel = crate::app::state::Panel::Remotes;
         app.remotes = vec!["test_remote".to_string()];
         app.remotes_selected = 0;
-        assert!(app.confirm_modal.is_none());
+        assert!(app.confirm_modal().is_none());
 
         let key = create_key_event(KeyCode::Char('d'));
         Handler::handle_key(&mut app, key).await.unwrap();
 
-        assert!(app.confirm_modal.is_some());
-        assert_eq!(app.pending_delete_remote, Some("test_remote".to_string()));
+        assert!(app.confirm_modal().is_some());
+        assert_eq!(app.pending_delete_remote(), Some("test_remote"));
     }
 
     #[tokio::test]
@@ -219,8 +221,8 @@ mod tests {
         let key = create_key_event(KeyCode::Char('d'));
         Handler::handle_key(&mut app, key).await.unwrap();
 
-        assert!(app.confirm_modal.is_none());
-        assert!(app.pending_delete_remote.is_none());
+        assert!(app.confirm_modal().is_none());
+        assert!(app.pending_delete_remote().is_none());
     }
 
     #[tokio::test]
@@ -233,19 +235,21 @@ mod tests {
         let key = create_key_event(KeyCode::Char('d'));
         Handler::handle_key(&mut app, key).await.unwrap();
 
-        assert!(app.confirm_modal.is_none());
+        assert!(app.confirm_modal().is_none());
     }
 
     #[tokio::test]
     async fn test_modal_input_char() {
         let client = create_test_client();
         let mut app = App::new(client);
-        app.create_remote_modal = Some(CreateRemoteModal::new(CreateRemoteMode::Create));
+        app.modal = Some(ActiveModal::CreateRemote(CreateRemoteModal::new(
+            CreateRemoteMode::Create,
+        )));
 
         let key = create_key_event(KeyCode::Char('a'));
         Handler::handle_key(&mut app, key).await.unwrap();
 
-        let modal = app.create_remote_modal.as_ref().unwrap();
+        let modal = app.create_remote_modal().unwrap();
         assert_eq!(modal.name, "a");
     }
 
@@ -255,12 +259,12 @@ mod tests {
         let mut app = App::new(client);
         let mut modal = CreateRemoteModal::new(CreateRemoteMode::Create);
         modal.name = "test".to_string();
-        app.create_remote_modal = Some(modal);
+        app.modal = Some(ActiveModal::CreateRemote(modal));
 
         let key = create_key_event(KeyCode::Backspace);
         Handler::handle_key(&mut app, key).await.unwrap();
 
-        let modal = app.create_remote_modal.as_ref().unwrap();
+        let modal = app.create_remote_modal().unwrap();
         assert_eq!(modal.name, "tes");
     }
 
@@ -268,12 +272,14 @@ mod tests {
     async fn test_modal_escape_closes() {
         let client = create_test_client();
         let mut app = App::new(client);
-        app.create_remote_modal = Some(CreateRemoteModal::new(CreateRemoteMode::Create));
+        app.modal = Some(ActiveModal::CreateRemote(CreateRemoteModal::new(
+            CreateRemoteMode::Create,
+        )));
 
         let key = create_key_event(KeyCode::Esc);
         Handler::handle_key(&mut app, key).await.unwrap();
 
-        assert!(app.create_remote_modal.is_none());
+        assert!(app.create_remote_modal().is_none());
     }
 
     #[tokio::test]
@@ -281,12 +287,12 @@ mod tests {
         let client = create_test_client();
         let mut app = App::new(client);
         let modal = CreateRemoteModal::new(CreateRemoteMode::Create);
-        app.create_remote_modal = Some(modal);
+        app.modal = Some(ActiveModal::CreateRemote(modal));
 
         let key = create_key_event(KeyCode::Tab);
         Handler::handle_key(&mut app, key).await.unwrap();
 
-        let modal = app.create_remote_modal.as_ref().unwrap();
+        let modal = app.create_remote_modal().unwrap();
         assert_eq!(modal.focus_field, crate::ui::RemoteField::Type);
     }
 
@@ -296,12 +302,12 @@ mod tests {
         let mut app = App::new(client);
         let mut modal = CreateRemoteModal::new(CreateRemoteMode::Create);
         modal.focus_field = crate::ui::RemoteField::Type;
-        app.create_remote_modal = Some(modal);
+        app.modal = Some(ActiveModal::CreateRemote(modal));
 
         let key = create_key_event(KeyCode::BackTab);
         Handler::handle_key(&mut app, key).await.unwrap();
 
-        let modal = app.create_remote_modal.as_ref().unwrap();
+        let modal = app.create_remote_modal().unwrap();
         assert_eq!(modal.focus_field, crate::ui::RemoteField::Name);
     }
 
@@ -309,82 +315,83 @@ mod tests {
     async fn test_confirm_modal_escape_closes() {
         let client = create_test_client();
         let mut app = App::new(client);
-        app.confirm_modal = Some(ConfirmModal::new("Test", "Test message".to_string()));
-        app.pending_delete_remote = Some("test".to_string());
+        app.modal = Some(ActiveModal::ConfirmDeleteRemote {
+            remote: "test".to_string(),
+            modal: ConfirmModal::new("Test", "Test message".to_string()),
+        });
 
         let key = create_key_event(KeyCode::Esc);
         Handler::handle_key(&mut app, key).await.unwrap();
 
-        assert!(app.confirm_modal.is_none());
-        assert!(app.pending_delete_remote.is_none());
+        assert!(app.confirm_modal().is_none());
+        assert!(app.pending_delete_remote().is_none());
     }
 
     #[tokio::test]
     async fn test_confirm_modal_tab_toggles() {
         let client = create_test_client();
         let mut app = App::new(client);
-        app.confirm_modal = Some(ConfirmModal::new("Test", "Test message".to_string()));
+        app.modal = Some(ActiveModal::ConfirmDeleteRemote {
+            remote: "test".to_string(),
+            modal: ConfirmModal::new("Test", "Test message".to_string()),
+        });
 
-        assert!(!app.confirm_modal.as_ref().unwrap().is_confirmed());
+        assert!(!app.confirm_modal().unwrap().is_confirmed());
 
         let key = create_key_event(KeyCode::Tab);
         Handler::handle_key(&mut app, key).await.unwrap();
 
-        assert!(app.confirm_modal.as_ref().unwrap().is_confirmed());
+        assert!(app.confirm_modal().unwrap().is_confirmed());
     }
 
     #[tokio::test]
     async fn test_confirm_modal_left_right_toggle() {
         let client = create_test_client();
         let mut app = App::new(client);
-        app.confirm_modal = Some(ConfirmModal::new("Test", "Test message".to_string()));
+        app.modal = Some(ActiveModal::ConfirmDeleteRemote {
+            remote: "test".to_string(),
+            modal: ConfirmModal::new("Test", "Test message".to_string()),
+        });
 
         let key = create_key_event(KeyCode::Right);
         Handler::handle_key(&mut app, key).await.unwrap();
-        assert!(app.confirm_modal.as_ref().unwrap().is_confirmed());
+        assert!(app.confirm_modal().unwrap().is_confirmed());
 
         let key = create_key_event(KeyCode::Left);
         Handler::handle_key(&mut app, key).await.unwrap();
-        assert!(!app.confirm_modal.as_ref().unwrap().is_confirmed());
+        assert!(!app.confirm_modal().unwrap().is_confirmed());
     }
 
     #[tokio::test]
     async fn test_confirm_modal_y_key() {
         let client = create_test_client();
         let mut app = App::new(client);
-        app.confirm_modal = Some(ConfirmModal::new("Test", "Test message".to_string()));
+        app.modal = Some(ActiveModal::ConfirmDeleteRemote {
+            remote: "test".to_string(),
+            modal: ConfirmModal::new("Test", "Test message".to_string()),
+        });
 
         let key = create_key_event(KeyCode::Char('y'));
         Handler::handle_key(&mut app, key).await.unwrap();
 
-        assert!(app.confirm_modal.as_ref().unwrap().is_confirmed());
+        assert!(app.confirm_modal().unwrap().is_confirmed());
     }
 
     #[tokio::test]
     async fn test_confirm_modal_n_key() {
         let client = create_test_client();
         let mut app = App::new(client);
-        app.confirm_modal = Some(ConfirmModal::new("Test", "Test message".to_string()));
-        app.confirm_modal.as_mut().unwrap().toggle();
+        let mut modal = ConfirmModal::new("Test", "Test message".to_string());
+        modal.toggle();
+        app.modal = Some(ActiveModal::ConfirmDeleteRemote {
+            remote: "test".to_string(),
+            modal,
+        });
 
         let key = create_key_event(KeyCode::Char('n'));
         Handler::handle_key(&mut app, key).await.unwrap();
 
-        assert!(!app.confirm_modal.as_ref().unwrap().is_confirmed());
-    }
-
-    #[tokio::test]
-    async fn test_confirm_modal_has_second_priority() {
-        let client = create_test_client();
-        let mut app = App::new(client);
-        app.confirm_modal = Some(ConfirmModal::new("Test", "message".to_string()));
-        app.create_remote_modal = Some(CreateRemoteModal::new(CreateRemoteMode::Create));
-
-        let key = create_key_event(KeyCode::Esc);
-        Handler::handle_key(&mut app, key).await.unwrap();
-
-        assert!(app.confirm_modal.is_none());
-        assert!(app.create_remote_modal.is_some());
+        assert!(!app.confirm_modal().unwrap().is_confirmed());
     }
 
     #[tokio::test]
@@ -393,12 +400,12 @@ mod tests {
         let mut app = App::new(client);
         let mut modal = CreateRemoteModal::new(CreateRemoteMode::Create);
         modal.error = Some("Previous error".to_string());
-        app.create_remote_modal = Some(modal);
+        app.modal = Some(ActiveModal::CreateRemote(modal));
 
         let key = create_key_event(KeyCode::Char('a'));
         Handler::handle_key(&mut app, key).await.unwrap();
 
-        let modal = app.create_remote_modal.as_ref().unwrap();
+        let modal = app.create_remote_modal().unwrap();
         assert!(modal.error.is_none());
     }
 }

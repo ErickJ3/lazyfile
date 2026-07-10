@@ -1,7 +1,7 @@
 //! File operation handling (delete, mkdir, copy, move).
 
 use super::Handler;
-use crate::app::state::App;
+use crate::app::state::{ActiveModal, App};
 use crate::error::Result;
 use crate::ui::FileOperationsModal;
 use crossterm::event::{KeyCode, KeyEvent};
@@ -12,19 +12,20 @@ impl Handler {
     pub(super) fn handle_delete_file(app: &mut App) {
         if let Some(item) = app.files.get(app.files_selected) {
             let file_name = item.name().to_string();
-            if item.is_dir() {
+            let modal = if item.is_dir() {
                 debug!(
                     file = %file_name,
                     "opening delete directory modal"
                 );
-                app.file_operations_modal = Some(FileOperationsModal::delete_directory(file_name));
+                FileOperationsModal::delete_directory(file_name)
             } else {
                 debug!(
                     file = %file_name,
                     "opening delete file modal"
                 );
-                app.file_operations_modal = Some(FileOperationsModal::delete_file(file_name));
-            }
+                FileOperationsModal::delete_file(file_name)
+            };
+            app.modal = Some(ActiveModal::FileOperation(modal));
         }
     }
 
@@ -36,7 +37,7 @@ impl Handler {
             app.current_path.clone()
         };
         debug!(path = %path, "opening mkdir modal");
-        app.file_operations_modal = Some(FileOperationsModal::mkdir(path));
+        app.modal = Some(ActiveModal::FileOperation(FileOperationsModal::mkdir(path)));
     }
 
     /// Opens the copy file modal.
@@ -45,7 +46,10 @@ impl Handler {
             let file_name = item.name().to_string();
             let current_path = app.current_path.clone();
             debug!(file = %file_name, "opening copy file modal");
-            app.file_operations_modal = Some(FileOperationsModal::copy(file_name, current_path));
+            app.modal = Some(ActiveModal::FileOperation(FileOperationsModal::copy(
+                file_name,
+                current_path,
+            )));
         }
     }
 
@@ -55,18 +59,20 @@ impl Handler {
             let file_name = item.name().to_string();
             let current_path = app.current_path.clone();
             debug!(file = %file_name, "opening move file modal");
-            app.file_operations_modal =
-                Some(FileOperationsModal::move_file(file_name, current_path));
+            app.modal = Some(ActiveModal::FileOperation(FileOperationsModal::move_file(
+                file_name,
+                current_path,
+            )));
         }
     }
 
     /// Handles keyboard input in file operations modal.
     pub(super) async fn handle_file_operations_key(app: &mut App, key: KeyEvent) -> Result<()> {
-        if let Some(ref mut modal) = app.file_operations_modal {
+        if let Some(ActiveModal::FileOperation(ref mut modal)) = app.modal {
             match key.code {
                 KeyCode::Esc => {
                     debug!("closing file operations modal");
-                    app.file_operations_modal = None;
+                    app.modal = None;
                 }
                 KeyCode::Char(c) if modal.needs_input() => {
                     modal.input_char(c);
@@ -85,99 +91,101 @@ impl Handler {
 
     /// Handles file operations modal submission.
     async fn handle_file_operations_submit(app: &mut App) -> Result<()> {
-        if let Some(modal) = app.file_operations_modal.take() {
-            if !modal.is_valid() {
-                app.file_operations_modal = Some(FileOperationsModal {
-                    error: Some("Input is required".to_string()),
-                    ..modal
-                });
-                return Ok(());
-            }
+        let Some(ActiveModal::FileOperation(modal)) = app.modal.take() else {
+            return Ok(());
+        };
 
-            let Some(ref remote) = app.current_remote else {
-                return Ok(());
-            };
-            let remote = remote.clone();
-
-            match modal.operation {
-                crate::ui::FileOperationType::DeleteFile => {
-                    info!(file = %modal.file_name, "deleting file");
-                    if let Err(e) = app.client.delete_file(&remote, &modal.file_name).await {
-                        app.file_operations_modal = Some(FileOperationsModal {
-                            error: Some(format!("Error: {}", e)),
-                            ..modal
-                        });
-                        return Ok(());
-                    }
-                }
-                crate::ui::FileOperationType::DeleteDirectory => {
-                    info!(
-                        dir = %modal.file_name,
-                        "purging directory"
-                    );
-                    if let Err(e) = app.client.purge(&remote, &modal.file_name).await {
-                        app.file_operations_modal = Some(FileOperationsModal {
-                            error: Some(format!("Error: {}", e)),
-                            ..modal
-                        });
-                        return Ok(());
-                    }
-                }
-                crate::ui::FileOperationType::Mkdir => {
-                    let new_path = if modal.current_path == "/" {
-                        format!("/{}", modal.input)
-                    } else {
-                        format!("{}/{}", modal.current_path, modal.input)
-                    };
-                    info!(path = %new_path, "creating directory");
-                    if let Err(e) = app.client.mkdir(&remote, &new_path).await {
-                        app.file_operations_modal = Some(FileOperationsModal {
-                            error: Some(format!("Error: {}", e)),
-                            ..modal
-                        });
-                        return Ok(());
-                    }
-                }
-                crate::ui::FileOperationType::Copy => {
-                    info!(
-                        src = %modal.file_name,
-                        dst = %modal.input,
-                        "copying file"
-                    );
-                    if let Err(e) = app
-                        .client
-                        .copy_file(&remote, &modal.file_name, &remote, &modal.input)
-                        .await
-                    {
-                        app.file_operations_modal = Some(FileOperationsModal {
-                            error: Some(format!("Error: {}", e)),
-                            ..modal
-                        });
-                        return Ok(());
-                    }
-                }
-                crate::ui::FileOperationType::Move => {
-                    info!(
-                        src = %modal.file_name,
-                        dst = %modal.input,
-                        "moving file"
-                    );
-                    if let Err(e) = app
-                        .client
-                        .move_file(&remote, &modal.file_name, &remote, &modal.input)
-                        .await
-                    {
-                        app.file_operations_modal = Some(FileOperationsModal {
-                            error: Some(format!("Error: {}", e)),
-                            ..modal
-                        });
-                        return Ok(());
-                    }
-                }
-            }
-
-            app.load_files().await?;
+        if !modal.is_valid() {
+            app.modal = Some(ActiveModal::FileOperation(FileOperationsModal {
+                error: Some("Input is required".to_string()),
+                ..modal
+            }));
+            return Ok(());
         }
+
+        let Some(ref remote) = app.current_remote else {
+            return Ok(());
+        };
+        let remote = remote.clone();
+
+        match modal.operation {
+            crate::ui::FileOperationType::DeleteFile => {
+                info!(file = %modal.file_name, "deleting file");
+                if let Err(e) = app.client.delete_file(&remote, &modal.file_name).await {
+                    app.modal = Some(ActiveModal::FileOperation(FileOperationsModal {
+                        error: Some(format!("Error: {}", e)),
+                        ..modal
+                    }));
+                    return Ok(());
+                }
+            }
+            crate::ui::FileOperationType::DeleteDirectory => {
+                info!(
+                    dir = %modal.file_name,
+                    "purging directory"
+                );
+                if let Err(e) = app.client.purge(&remote, &modal.file_name).await {
+                    app.modal = Some(ActiveModal::FileOperation(FileOperationsModal {
+                        error: Some(format!("Error: {}", e)),
+                        ..modal
+                    }));
+                    return Ok(());
+                }
+            }
+            crate::ui::FileOperationType::Mkdir => {
+                let new_path = if modal.current_path == "/" {
+                    format!("/{}", modal.input)
+                } else {
+                    format!("{}/{}", modal.current_path, modal.input)
+                };
+                info!(path = %new_path, "creating directory");
+                if let Err(e) = app.client.mkdir(&remote, &new_path).await {
+                    app.modal = Some(ActiveModal::FileOperation(FileOperationsModal {
+                        error: Some(format!("Error: {}", e)),
+                        ..modal
+                    }));
+                    return Ok(());
+                }
+            }
+            crate::ui::FileOperationType::Copy => {
+                info!(
+                    src = %modal.file_name,
+                    dst = %modal.input,
+                    "copying file"
+                );
+                if let Err(e) = app
+                    .client
+                    .copy_file(&remote, &modal.file_name, &remote, &modal.input)
+                    .await
+                {
+                    app.modal = Some(ActiveModal::FileOperation(FileOperationsModal {
+                        error: Some(format!("Error: {}", e)),
+                        ..modal
+                    }));
+                    return Ok(());
+                }
+            }
+            crate::ui::FileOperationType::Move => {
+                info!(
+                    src = %modal.file_name,
+                    dst = %modal.input,
+                    "moving file"
+                );
+                if let Err(e) = app
+                    .client
+                    .move_file(&remote, &modal.file_name, &remote, &modal.input)
+                    .await
+                {
+                    app.modal = Some(ActiveModal::FileOperation(FileOperationsModal {
+                        error: Some(format!("Error: {}", e)),
+                        ..modal
+                    }));
+                    return Ok(());
+                }
+            }
+        }
+
+        app.load_files().await?;
         Ok(())
     }
 }
@@ -218,13 +226,13 @@ mod tests {
         app.focused_panel = Panel::Files;
         app.files = vec![create_file_item("test.txt", false)];
         app.files_selected = 0;
-        assert!(app.file_operations_modal.is_none());
+        assert!(app.file_operations_modal().is_none());
 
         let key = create_key_event(KeyCode::Char('x'));
         Handler::handle_key(&mut app, key).await.unwrap();
 
-        assert!(app.file_operations_modal.is_some());
-        let modal = app.file_operations_modal.as_ref().unwrap();
+        assert!(app.file_operations_modal().is_some());
+        let modal = app.file_operations_modal().unwrap();
         assert_eq!(modal.operation, crate::ui::FileOperationType::DeleteFile);
         assert_eq!(modal.file_name, "test.txt");
     }
@@ -240,8 +248,8 @@ mod tests {
         let key = create_key_event(KeyCode::Char('x'));
         Handler::handle_key(&mut app, key).await.unwrap();
 
-        assert!(app.file_operations_modal.is_some());
-        let modal = app.file_operations_modal.as_ref().unwrap();
+        assert!(app.file_operations_modal().is_some());
+        let modal = app.file_operations_modal().unwrap();
         assert_eq!(
             modal.operation,
             crate::ui::FileOperationType::DeleteDirectory
@@ -259,7 +267,7 @@ mod tests {
         let key = create_key_event(KeyCode::Char('x'));
         Handler::handle_key(&mut app, key).await.unwrap();
 
-        assert!(app.file_operations_modal.is_none());
+        assert!(app.file_operations_modal().is_none());
     }
 
     #[tokio::test]
@@ -272,7 +280,7 @@ mod tests {
         let key = create_key_event(KeyCode::Char('x'));
         Handler::handle_key(&mut app, key).await.unwrap();
 
-        assert!(app.file_operations_modal.is_none());
+        assert!(app.file_operations_modal().is_none());
     }
 
     #[tokio::test]
@@ -285,8 +293,8 @@ mod tests {
         let key = create_key_event(KeyCode::Char('n'));
         Handler::handle_key(&mut app, key).await.unwrap();
 
-        assert!(app.file_operations_modal.is_some());
-        let modal = app.file_operations_modal.as_ref().unwrap();
+        assert!(app.file_operations_modal().is_some());
+        let modal = app.file_operations_modal().unwrap();
         assert_eq!(modal.operation, crate::ui::FileOperationType::Mkdir);
         assert_eq!(modal.current_path, "/some/path");
     }
@@ -301,7 +309,7 @@ mod tests {
         let key = create_key_event(KeyCode::Char('n'));
         Handler::handle_key(&mut app, key).await.unwrap();
 
-        let modal = app.file_operations_modal.as_ref().unwrap();
+        let modal = app.file_operations_modal().unwrap();
         assert_eq!(modal.current_path, "/");
     }
 
@@ -314,7 +322,7 @@ mod tests {
         let key = create_key_event(KeyCode::Char('n'));
         Handler::handle_key(&mut app, key).await.unwrap();
 
-        assert!(app.file_operations_modal.is_none());
+        assert!(app.file_operations_modal().is_none());
     }
 
     #[tokio::test]
@@ -329,8 +337,8 @@ mod tests {
         let key = create_key_event(KeyCode::Char('c'));
         Handler::handle_key(&mut app, key).await.unwrap();
 
-        assert!(app.file_operations_modal.is_some());
-        let modal = app.file_operations_modal.as_ref().unwrap();
+        assert!(app.file_operations_modal().is_some());
+        let modal = app.file_operations_modal().unwrap();
         assert_eq!(modal.operation, crate::ui::FileOperationType::Copy);
         assert_eq!(modal.file_name, "source.txt");
         assert_eq!(modal.current_path, "/current");
@@ -346,7 +354,7 @@ mod tests {
         let key = create_key_event(KeyCode::Char('c'));
         Handler::handle_key(&mut app, key).await.unwrap();
 
-        assert!(app.file_operations_modal.is_none());
+        assert!(app.file_operations_modal().is_none());
     }
 
     #[tokio::test]
@@ -359,7 +367,7 @@ mod tests {
         let key = create_key_event(KeyCode::Char('c'));
         Handler::handle_key(&mut app, key).await.unwrap();
 
-        assert!(app.file_operations_modal.is_none());
+        assert!(app.file_operations_modal().is_none());
     }
 
     #[tokio::test]
@@ -374,8 +382,8 @@ mod tests {
         let key = create_key_event(KeyCode::Char('m'));
         Handler::handle_key(&mut app, key).await.unwrap();
 
-        assert!(app.file_operations_modal.is_some());
-        let modal = app.file_operations_modal.as_ref().unwrap();
+        assert!(app.file_operations_modal().is_some());
+        let modal = app.file_operations_modal().unwrap();
         assert_eq!(modal.operation, crate::ui::FileOperationType::Move);
         assert_eq!(modal.file_name, "source.txt");
     }
@@ -390,7 +398,7 @@ mod tests {
         let key = create_key_event(KeyCode::Char('m'));
         Handler::handle_key(&mut app, key).await.unwrap();
 
-        assert!(app.file_operations_modal.is_none());
+        assert!(app.file_operations_modal().is_none());
     }
 
     #[tokio::test]
@@ -403,19 +411,21 @@ mod tests {
         let key = create_key_event(KeyCode::Char('m'));
         Handler::handle_key(&mut app, key).await.unwrap();
 
-        assert!(app.file_operations_modal.is_none());
+        assert!(app.file_operations_modal().is_none());
     }
 
     #[tokio::test]
     async fn test_file_ops_modal_input_char() {
         let client = create_test_client();
         let mut app = App::new(client);
-        app.file_operations_modal = Some(FileOperationsModal::mkdir("/".to_string()));
+        app.modal = Some(ActiveModal::FileOperation(FileOperationsModal::mkdir(
+            "/".to_string(),
+        )));
 
         let key = create_key_event(KeyCode::Char('t'));
         Handler::handle_key(&mut app, key).await.unwrap();
 
-        let modal = app.file_operations_modal.as_ref().unwrap();
+        let modal = app.file_operations_modal().unwrap();
         assert_eq!(modal.input, "t");
     }
 
@@ -425,12 +435,12 @@ mod tests {
         let mut app = App::new(client);
         let mut modal = FileOperationsModal::mkdir("/".to_string());
         modal.input = "test".to_string();
-        app.file_operations_modal = Some(modal);
+        app.modal = Some(ActiveModal::FileOperation(modal));
 
         let key = create_key_event(KeyCode::Backspace);
         Handler::handle_key(&mut app, key).await.unwrap();
 
-        let modal = app.file_operations_modal.as_ref().unwrap();
+        let modal = app.file_operations_modal().unwrap();
         assert_eq!(modal.input, "tes");
     }
 
@@ -438,42 +448,28 @@ mod tests {
     async fn test_file_ops_modal_escape_closes() {
         let client = create_test_client();
         let mut app = App::new(client);
-        app.file_operations_modal = Some(FileOperationsModal::mkdir("/".to_string()));
+        app.modal = Some(ActiveModal::FileOperation(FileOperationsModal::mkdir(
+            "/".to_string(),
+        )));
 
         let key = create_key_event(KeyCode::Esc);
         Handler::handle_key(&mut app, key).await.unwrap();
 
-        assert!(app.file_operations_modal.is_none());
+        assert!(app.file_operations_modal().is_none());
     }
 
     #[tokio::test]
     async fn test_file_ops_modal_delete_no_input_needed() {
         let client = create_test_client();
         let mut app = App::new(client);
-        app.file_operations_modal = Some(FileOperationsModal::delete_file("test.txt".to_string()));
+        app.modal = Some(ActiveModal::FileOperation(
+            FileOperationsModal::delete_file("test.txt".to_string()),
+        ));
 
         let key = create_key_event(KeyCode::Char('x'));
         Handler::handle_key(&mut app, key).await.unwrap();
 
-        let modal = app.file_operations_modal.as_ref().unwrap();
+        let modal = app.file_operations_modal().unwrap();
         assert!(modal.input.is_empty());
-    }
-
-    #[tokio::test]
-    async fn test_file_operations_modal_has_priority() {
-        let client = create_test_client();
-        let mut app = App::new(client);
-        app.file_operations_modal = Some(FileOperationsModal::mkdir("/".to_string()));
-        app.confirm_modal = Some(crate::ui::ConfirmModal::new("Test", "message".to_string()));
-        app.create_remote_modal = Some(crate::ui::CreateRemoteModal::new(
-            crate::ui::CreateRemoteMode::Create,
-        ));
-
-        let key = create_key_event(KeyCode::Esc);
-        Handler::handle_key(&mut app, key).await.unwrap();
-
-        assert!(app.file_operations_modal.is_none());
-        assert!(app.confirm_modal.is_some());
-        assert!(app.create_remote_modal.is_some());
     }
 }

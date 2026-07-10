@@ -14,6 +14,25 @@ pub enum Panel {
     Files,
 }
 
+/// The currently open modal, if any.
+///
+/// A single slot makes overlapping modals unrepresentable: opening a
+/// modal replaces whatever was open before.
+#[derive(Debug)]
+pub enum ActiveModal {
+    /// Create/edit remote form.
+    CreateRemote(CreateRemoteModal),
+    /// Delete confirmation for the named remote.
+    ConfirmDeleteRemote {
+        /// Remote pending deletion, applied on confirm.
+        remote: String,
+        /// Yes/no confirmation state.
+        modal: ConfirmModal,
+    },
+    /// File operation (delete, mkdir, copy, move) form.
+    FileOperation(FileOperationsModal),
+}
+
 /// Main application state.
 #[derive(Debug)]
 pub struct App {
@@ -35,14 +54,8 @@ pub struct App {
     pub focused_panel: Panel,
     /// Whether the app should continue running.
     pub running: bool,
-    /// Modal for creating/editing remotes.
-    pub create_remote_modal: Option<CreateRemoteModal>,
-    /// Confirmation modal for delete operations.
-    pub confirm_modal: Option<ConfirmModal>,
-    /// Remote name being deleted (used for confirmation).
-    pub pending_delete_remote: Option<String>,
-    /// Modal for file operations.
-    pub file_operations_modal: Option<FileOperationsModal>,
+    /// Currently open modal. `None` means no modal is open.
+    pub modal: Option<ActiveModal>,
     /// Whether the rclone daemon is connected.
     pub connected: bool,
 }
@@ -60,11 +73,40 @@ impl App {
             files_selected: 0,
             focused_panel: Panel::Remotes,
             running: true,
-            create_remote_modal: None,
-            confirm_modal: None,
-            pending_delete_remote: None,
-            file_operations_modal: None,
+            modal: None,
             connected: true,
+        }
+    }
+
+    /// Returns the create/edit remote modal if it is the open modal.
+    pub fn create_remote_modal(&self) -> Option<&CreateRemoteModal> {
+        match self.modal {
+            Some(ActiveModal::CreateRemote(ref modal)) => Some(modal),
+            _ => None,
+        }
+    }
+
+    /// Returns the delete confirmation modal if it is the open modal.
+    pub fn confirm_modal(&self) -> Option<&ConfirmModal> {
+        match self.modal {
+            Some(ActiveModal::ConfirmDeleteRemote { ref modal, .. }) => Some(modal),
+            _ => None,
+        }
+    }
+
+    /// Returns the file operations modal if it is the open modal.
+    pub fn file_operations_modal(&self) -> Option<&FileOperationsModal> {
+        match self.modal {
+            Some(ActiveModal::FileOperation(ref modal)) => Some(modal),
+            _ => None,
+        }
+    }
+
+    /// Returns the remote pending deletion while confirmation is open.
+    pub fn pending_delete_remote(&self) -> Option<&str> {
+        match self.modal {
+            Some(ActiveModal::ConfirmDeleteRemote { ref remote, .. }) => Some(remote),
+            _ => None,
         }
     }
 
@@ -188,10 +230,7 @@ mod tests {
         assert_eq!(app.files_selected, 0);
         assert_eq!(app.focused_panel, Panel::Remotes);
         assert!(app.running);
-        assert!(app.create_remote_modal.is_none());
-        assert!(app.confirm_modal.is_none());
-        assert!(app.pending_delete_remote.is_none());
-        assert!(app.file_operations_modal.is_none());
+        assert!(app.modal.is_none());
     }
 
     #[test]
@@ -479,10 +518,11 @@ mod tests {
     fn test_app_modals_none_initially() {
         let client = create_test_client();
         let app = App::new(client);
-        assert!(app.create_remote_modal.is_none());
-        assert!(app.confirm_modal.is_none());
-        assert!(app.file_operations_modal.is_none());
-        assert!(app.pending_delete_remote.is_none());
+        assert!(app.modal.is_none());
+        assert!(app.create_remote_modal().is_none());
+        assert!(app.confirm_modal().is_none());
+        assert!(app.file_operations_modal().is_none());
+        assert!(app.pending_delete_remote().is_none());
     }
 
     #[test]
