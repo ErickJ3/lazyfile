@@ -1,6 +1,6 @@
 //! Terminal layout and area management.
 
-use ratatui::prelude::*;
+use ratatui::layout::{Constraint, Direction, Rect};
 
 /// Divides terminal into distinct regions.
 pub struct Layout;

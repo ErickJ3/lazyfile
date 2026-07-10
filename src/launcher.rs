@@ -4,8 +4,7 @@ use crate::app::{App, Handler};
 use crate::error::Result;
 use crate::ui::Layout;
 use crossterm::event::{self, Event};
-use ratatui::DefaultTerminal;
-use ratatui::prelude::*;
+use ratatui::{DefaultTerminal, Frame};
 
 /// Main
 async fn run_app(terminal: &mut DefaultTerminal, app: &mut App) -> Result<()> {

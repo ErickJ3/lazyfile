@@ -1,7 +1,7 @@
 //! Status bar widget.
 
 use crate::ui::styles;
-use ratatui::{prelude::*, widgets::Paragraph};
+use ratatui::{Frame, layout::Rect, widgets::Paragraph};
 
 /// Widget for displaying application status.
 pub struct StatusBarWidget;
