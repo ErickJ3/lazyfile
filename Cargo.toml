@@ -17,7 +17,9 @@ rust-version = "1.86"
 ratatui = "0.30"
 crossterm = "0.29"
 tokio = { version = "1", features = ["full"] }
-reqwest = { version = "0.12", features = ["json"] }
+# default-features off: the rclone daemon is plain HTTP, so the
+# TLS stack is dead weight.
+reqwest = { version = "0.13", default-features = false, features = ["json"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"
