@@ -11,7 +11,7 @@ use reqwest::Client;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::time::Duration;
-use tracing::{debug, error, info, trace};
+use tracing::{debug, error, info, trace, warn};
 
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 
@@ -124,15 +124,10 @@ impl RcloneClient {
             .await?;
         trace!(body = %body, "list_files response");
 
-        let json: serde_json::Value = serde_json::from_str(&body)?;
-        if let Ok(resp) = serde_json::from_value::<ListFilesResponse>(json) {
-            let items = resp.list.unwrap_or_default();
-            info!(count = items.len(), "loaded files");
-            return Ok(items);
-        }
-
-        debug!("no items found in response");
-        Ok(Vec::new())
+        let items = parse_list_files(&body)
+            .inspect_err(|e| warn!(error = %e, "malformed list_files response"))?;
+        info!(count = items.len(), "loaded files");
+        Ok(items)
     }
 
     /// Creates a new remote configuration.
@@ -324,5 +319,61 @@ impl RcloneClient {
         self.post_command(commands::SYNC_COPY, &request).await?;
         info!("sync copy completed");
         Ok(())
+    }
+}
+
+/// Parses an `operations/list` response body into file items.
+///
+/// A missing or `null` `list` field is a valid empty directory;
+/// anything that does not match the response shape is an error.
+fn parse_list_files(body: &str) -> Result<Vec<FileItem>> {
+    let resp: ListFilesResponse =
+        serde_json::from_str(body).map_err(|e| LazyFileError::RcloneApi {
+            endpoint: commands::LIST_FILES,
+            message: format!("unexpected response format: {}", e),
+        })?;
+    Ok(resp.list.unwrap_or_default())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_valid_file_list() {
+        let body = r#"{"list":[{"Name":"a.txt","Size":10,"ModTime":"2024-01-01T00:00:00Z","IsDir":false}]}"#;
+        let items = parse_list_files(body).unwrap();
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0].name(), "a.txt");
+    }
+
+    #[test]
+    fn treats_null_list_as_empty() {
+        let items = parse_list_files(r#"{"list":null}"#).unwrap();
+        assert!(items.is_empty());
+    }
+
+    #[test]
+    fn treats_missing_list_as_empty() {
+        let items = parse_list_files("{}").unwrap();
+        assert!(items.is_empty());
+    }
+
+    #[test]
+    fn rejects_malformed_body() {
+        let err = parse_list_files("not json").unwrap_err();
+        assert!(matches!(
+            err,
+            LazyFileError::RcloneApi {
+                endpoint: commands::LIST_FILES,
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn rejects_wrong_item_shape() {
+        let err = parse_list_files(r#"{"list":[{"unexpected":true}]}"#).unwrap_err();
+        assert!(matches!(err, LazyFileError::RcloneApi { .. }));
     }
 }
