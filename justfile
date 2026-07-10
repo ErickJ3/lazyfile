@@ -3,8 +3,13 @@ check: lint fmt-check test
 test:
     cargo test --lib --verbose
 
+# Integration tests need an rclone daemon on localhost:5572 and run
+# single-threaded: they share the daemon config and a /tmp directory.
+test-integration:
+    cargo test --verbose -- --ignored --test-threads=1
+
 test-all:
-    cargo test --verbose
+    cargo test --verbose -- --include-ignored --test-threads=1
 
 lint:
     cargo clippy -- -D warnings
