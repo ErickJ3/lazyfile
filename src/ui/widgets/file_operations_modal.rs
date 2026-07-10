@@ -89,6 +89,11 @@ impl FileOperationsModal {
     }
 
     pub fn input_char(&mut self, c: char) {
+        // Bracketed paste can deliver control characters as Char
+        // events; they are never valid in a path segment.
+        if c.is_control() {
+            return;
+        }
         self.input.push(c);
         self.error = None;
     }
@@ -631,5 +636,14 @@ mod tests {
         let modal =
             FileOperationsModal::copy("file.txt".to_string(), "/very/deep/nested/path".to_string());
         assert_eq!(modal.current_path, "/very/deep/nested/path");
+    }
+
+    #[test]
+    fn test_input_char_ignores_control_chars() {
+        let mut modal = FileOperationsModal::mkdir("/".to_string());
+        modal.input_char('\n');
+        modal.input_char('\u{1b}');
+        modal.input_char('a');
+        assert_eq!(modal.input, "a");
     }
 }
