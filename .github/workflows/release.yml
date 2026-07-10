@@ -70,7 +70,7 @@ jobs:
 
       - name: Upload to release
         if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: lazyfile-${{ needs.get-version.outputs.version }}-arch-x86_64.tar.gz
         env:
@@ -142,7 +142,7 @@ jobs:
 
       - name: Upload to release
         if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: lazyfile_${{ needs.get-version.outputs.version }}_amd64.deb
         env:
@@ -185,7 +185,7 @@ jobs:
 
       - name: Upload to release
         if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: lazyfile-${{ needs.get-version.outputs.version }}-ubuntu-x86_64.tar.gz
         env:
@@ -271,7 +271,7 @@ jobs:
 
       - name: Upload to release
         if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: rpm_build/RPMS/x86_64/*.rpm
         env:
