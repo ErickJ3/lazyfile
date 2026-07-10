@@ -34,22 +34,22 @@ pub struct FileOperationsModal {
 
 impl FileOperationsModal {
     /// Create a new file operations modal for delete file.
-    pub fn delete_file(file_name: String) -> Self {
+    pub fn delete_file(file_name: String, current_path: String) -> Self {
         Self {
             operation: FileOperationType::DeleteFile,
             file_name,
-            current_path: String::new(),
+            current_path,
             input: String::new(),
             error: None,
         }
     }
 
     /// Create a new file operations modal for delete directory.
-    pub fn delete_directory(dir_name: String) -> Self {
+    pub fn delete_directory(dir_name: String, current_path: String) -> Self {
         Self {
             operation: FileOperationType::DeleteDirectory,
             file_name: dir_name,
-            current_path: String::new(),
+            current_path,
             input: String::new(),
             error: None,
         }
@@ -274,7 +274,7 @@ mod tests {
 
     #[test]
     fn test_delete_file_modal_creation() {
-        let modal = FileOperationsModal::delete_file("test.txt".to_string());
+        let modal = FileOperationsModal::delete_file("test.txt".to_string(), String::new());
 
         assert_eq!(modal.operation, FileOperationType::DeleteFile);
         assert_eq!(modal.file_name, "test.txt");
@@ -285,25 +285,25 @@ mod tests {
 
     #[test]
     fn test_delete_file_modal_title() {
-        let modal = FileOperationsModal::delete_file("test.txt".to_string());
+        let modal = FileOperationsModal::delete_file("test.txt".to_string(), String::new());
         assert_eq!(modal.get_title(), "Delete File");
     }
 
     #[test]
     fn test_delete_file_modal_message() {
-        let modal = FileOperationsModal::delete_file("important.txt".to_string());
+        let modal = FileOperationsModal::delete_file("important.txt".to_string(), String::new());
         assert_eq!(modal.get_message(), "Delete file 'important.txt'?");
     }
 
     #[test]
     fn test_delete_file_does_not_need_input() {
-        let modal = FileOperationsModal::delete_file("test.txt".to_string());
+        let modal = FileOperationsModal::delete_file("test.txt".to_string(), String::new());
         assert!(!modal.needs_input());
     }
 
     #[test]
     fn test_delete_file_is_always_valid() {
-        let modal = FileOperationsModal::delete_file("test.txt".to_string());
+        let modal = FileOperationsModal::delete_file("test.txt".to_string(), String::new());
         assert!(modal.is_valid());
     }
 
@@ -313,7 +313,7 @@ mod tests {
 
     #[test]
     fn test_delete_directory_modal_creation() {
-        let modal = FileOperationsModal::delete_directory("mydir".to_string());
+        let modal = FileOperationsModal::delete_directory("mydir".to_string(), String::new());
 
         assert_eq!(modal.operation, FileOperationType::DeleteDirectory);
         assert_eq!(modal.file_name, "mydir");
@@ -324,13 +324,14 @@ mod tests {
 
     #[test]
     fn test_delete_directory_modal_title() {
-        let modal = FileOperationsModal::delete_directory("mydir".to_string());
+        let modal = FileOperationsModal::delete_directory("mydir".to_string(), String::new());
         assert_eq!(modal.get_title(), "Delete Directory");
     }
 
     #[test]
     fn test_delete_directory_modal_message() {
-        let modal = FileOperationsModal::delete_directory("important_folder".to_string());
+        let modal =
+            FileOperationsModal::delete_directory("important_folder".to_string(), String::new());
         assert_eq!(
             modal.get_message(),
             "Delete directory 'important_folder' and all contents?"
@@ -339,13 +340,13 @@ mod tests {
 
     #[test]
     fn test_delete_directory_does_not_need_input() {
-        let modal = FileOperationsModal::delete_directory("mydir".to_string());
+        let modal = FileOperationsModal::delete_directory("mydir".to_string(), String::new());
         assert!(!modal.needs_input());
     }
 
     #[test]
     fn test_delete_directory_is_always_valid() {
-        let modal = FileOperationsModal::delete_directory("mydir".to_string());
+        let modal = FileOperationsModal::delete_directory("mydir".to_string(), String::new());
         assert!(modal.is_valid());
     }
 
@@ -596,26 +597,28 @@ mod tests {
 
     #[test]
     fn test_empty_file_name() {
-        let modal = FileOperationsModal::delete_file(String::new());
+        let modal = FileOperationsModal::delete_file(String::new(), String::new());
         assert_eq!(modal.get_message(), "Delete file ''?");
     }
 
     #[test]
     fn test_file_name_with_special_chars() {
-        let modal = FileOperationsModal::delete_file("file<>:\"name.txt".to_string());
+        let modal =
+            FileOperationsModal::delete_file("file<>:\"name.txt".to_string(), String::new());
         assert_eq!(modal.get_message(), "Delete file 'file<>:\"name.txt'?");
     }
 
     #[test]
     fn test_unicode_file_name() {
-        let modal = FileOperationsModal::delete_file("arquivo_português.txt".to_string());
+        let modal =
+            FileOperationsModal::delete_file("arquivo_português.txt".to_string(), String::new());
         assert_eq!(modal.get_message(), "Delete file 'arquivo_português.txt'?");
     }
 
     #[test]
     fn test_long_file_name() {
         let long_name = "a".repeat(100);
-        let modal = FileOperationsModal::delete_file(long_name.clone());
+        let modal = FileOperationsModal::delete_file(long_name.clone(), String::new());
         assert_eq!(modal.file_name, long_name);
     }
 

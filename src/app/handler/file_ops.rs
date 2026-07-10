@@ -12,18 +12,19 @@ impl Handler {
     pub(super) fn handle_delete_file(app: &mut App) {
         if let Some(item) = app.files.get(app.files_selected) {
             let file_name = item.name().to_string();
+            let current_path = app.current_path.clone();
             let modal = if item.is_dir() {
                 debug!(
                     file = %file_name,
                     "opening delete directory modal"
                 );
-                FileOperationsModal::delete_directory(file_name)
+                FileOperationsModal::delete_directory(file_name, current_path)
             } else {
                 debug!(
                     file = %file_name,
                     "opening delete file modal"
                 );
-                FileOperationsModal::delete_file(file_name)
+                FileOperationsModal::delete_file(file_name, current_path)
             };
             app.modal = Some(ActiveModal::FileOperation(modal));
         }
@@ -110,44 +111,31 @@ impl Handler {
 
         let result = match modal.operation {
             crate::ui::FileOperationType::DeleteFile => {
-                info!(file = %modal.file_name, "deleting file");
-                app.client.delete_file(&remote, &modal.file_name).await
+                let path = join_remote_path(&modal.current_path, &modal.file_name);
+                info!(file = %path, "deleting file");
+                app.client.delete_file(&remote, &path).await
             }
             crate::ui::FileOperationType::DeleteDirectory => {
-                info!(
-                    dir = %modal.file_name,
-                    "purging directory"
-                );
-                app.client.purge(&remote, &modal.file_name).await
+                let path = join_remote_path(&modal.current_path, &modal.file_name);
+                info!(dir = %path, "purging directory");
+                app.client.purge(&remote, &path).await
             }
             crate::ui::FileOperationType::Mkdir => {
-                let new_path = if modal.current_path == "/" {
-                    format!("/{}", modal.input)
-                } else {
-                    format!("{}/{}", modal.current_path, modal.input)
-                };
+                let new_path = join_remote_path(&modal.current_path, &modal.input);
                 info!(path = %new_path, "creating directory");
                 app.client.mkdir(&remote, &new_path).await
             }
             crate::ui::FileOperationType::Copy => {
-                info!(
-                    src = %modal.file_name,
-                    dst = %modal.input,
-                    "copying file"
-                );
-                app.client
-                    .copy_file(&remote, &modal.file_name, &remote, &modal.input)
-                    .await
+                let src = join_remote_path(&modal.current_path, &modal.file_name);
+                let dst = join_remote_path(&modal.current_path, &modal.input);
+                info!(src = %src, dst = %dst, "copying file");
+                app.client.copy_file(&remote, &src, &remote, &dst).await
             }
             crate::ui::FileOperationType::Move => {
-                info!(
-                    src = %modal.file_name,
-                    dst = %modal.input,
-                    "moving file"
-                );
-                app.client
-                    .move_file(&remote, &modal.file_name, &remote, &modal.input)
-                    .await
+                let src = join_remote_path(&modal.current_path, &modal.file_name);
+                let dst = join_remote_path(&modal.current_path, &modal.input);
+                info!(src = %src, dst = %dst, "moving file");
+                app.client.move_file(&remote, &src, &remote, &dst).await
             }
         };
 
@@ -161,6 +149,20 @@ impl Handler {
 
         app.load_files().await?;
         Ok(())
+    }
+}
+
+/// Joins the directory a modal was opened in with a file name,
+/// producing the remote-relative path the rclone API expects.
+///
+/// The modal's `current_path` is `""` or `"/"` at the remote root
+/// depending on the operation, so both normalize to just the name.
+fn join_remote_path(dir: &str, name: &str) -> String {
+    let dir = dir.trim_matches('/');
+    if dir.is_empty() {
+        name.to_string()
+    } else {
+        format!("{}/{}", dir, name)
     }
 }
 
@@ -191,6 +193,30 @@ mod tests {
             mod_time: "2024-01-01T00:00:00Z".to_string(),
             is_dir,
         }
+    }
+
+    #[test]
+    fn join_remote_path_resolves_root_and_subdir() {
+        assert_eq!(join_remote_path("", "file.txt"), "file.txt");
+        assert_eq!(join_remote_path("/", "file.txt"), "file.txt");
+        assert_eq!(join_remote_path("mydir", "file.txt"), "mydir/file.txt");
+        assert_eq!(join_remote_path("a/b", "c.txt"), "a/b/c.txt");
+    }
+
+    #[tokio::test]
+    async fn test_delete_modal_captures_current_path() {
+        let client = create_test_client();
+        let mut app = App::new(client);
+        app.focused_panel = Panel::Files;
+        app.current_path = "docs/reports".to_string();
+        app.files = vec![create_file_item("test.txt", false)];
+        app.files_selected = 0;
+
+        let key = create_key_event(KeyCode::Char('x'));
+        Handler::handle_key(&mut app, key).await.unwrap();
+
+        let modal = app.file_operations_modal().unwrap();
+        assert_eq!(modal.current_path, "docs/reports");
     }
 
     #[tokio::test]
@@ -437,7 +463,7 @@ mod tests {
         let client = create_test_client();
         let mut app = App::new(client);
         app.modal = Some(ActiveModal::FileOperation(
-            FileOperationsModal::delete_file("test.txt".to_string()),
+            FileOperationsModal::delete_file("test.txt".to_string(), String::new()),
         ));
 
         let key = create_key_event(KeyCode::Char('x'));
@@ -475,7 +501,7 @@ mod tests {
         app.focused_panel = Panel::Remotes;
         app.remotes = vec!["remote1".to_string()];
         app.modal = Some(ActiveModal::FileOperation(
-            FileOperationsModal::delete_file("test.txt".to_string()),
+            FileOperationsModal::delete_file("test.txt".to_string(), String::new()),
         ));
 
         let key = create_key_event(KeyCode::Char('d'));
