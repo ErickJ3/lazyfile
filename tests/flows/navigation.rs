@@ -18,9 +18,9 @@ async fn test_flow_create_remote_and_browse() {
     fs::write(test_dir.join("subdir/nested.txt"), "nested content").unwrap();
 
     let mut params = HashMap::new();
-    params.insert("path".to_string(), test_dir.to_string_lossy().to_string());
+    params.insert("remote".to_string(), test_dir.to_string_lossy().to_string());
     client
-        .create_remote(&remote_name, "local", params)
+        .create_remote(&remote_name, "alias", params)
         .await
         .unwrap();
 
@@ -85,9 +85,9 @@ async fn test_flow_deep_navigation() {
     fs::write(test_dir.join("a/b/c/d/deep.txt"), "very deep").unwrap();
 
     let mut params = HashMap::new();
-    params.insert("path".to_string(), test_dir.to_string_lossy().to_string());
+    params.insert("remote".to_string(), test_dir.to_string_lossy().to_string());
     client
-        .create_remote(&remote_name, "local", params)
+        .create_remote(&remote_name, "alias", params)
         .await
         .unwrap();
 
@@ -137,9 +137,9 @@ async fn test_flow_panel_switching() {
     fs::write(test_dir.join("file.txt"), "content").unwrap();
 
     let mut params = HashMap::new();
-    params.insert("path".to_string(), test_dir.to_string_lossy().to_string());
+    params.insert("remote".to_string(), test_dir.to_string_lossy().to_string());
     client
-        .create_remote(&remote_name, "local", params)
+        .create_remote(&remote_name, "alias", params)
         .await
         .unwrap();
 

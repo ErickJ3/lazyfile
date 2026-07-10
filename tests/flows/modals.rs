@@ -13,9 +13,9 @@ async fn test_flow_cancel_modal_with_escape() {
     let remote_name = unique_remote_name("flow_cancel");
 
     let mut params = HashMap::new();
-    params.insert("path".to_string(), test_dir.to_string_lossy().to_string());
+    params.insert("remote".to_string(), test_dir.to_string_lossy().to_string());
     client
-        .create_remote(&remote_name, "local", params)
+        .create_remote(&remote_name, "alias", params)
         .await
         .unwrap();
 
@@ -59,9 +59,9 @@ async fn test_flow_modal_validation_error() {
     let remote_name = unique_remote_name("flow_error");
 
     let mut params = HashMap::new();
-    params.insert("path".to_string(), test_dir.to_string_lossy().to_string());
+    params.insert("remote".to_string(), test_dir.to_string_lossy().to_string());
     client
-        .create_remote(&remote_name, "local", params)
+        .create_remote(&remote_name, "alias", params)
         .await
         .unwrap();
 
@@ -111,9 +111,9 @@ async fn test_flow_modal_backspace_clears_input() {
     let remote_name = unique_remote_name("flow_backspace");
 
     let mut params = HashMap::new();
-    params.insert("path".to_string(), test_dir.to_string_lossy().to_string());
+    params.insert("remote".to_string(), test_dir.to_string_lossy().to_string());
     client
-        .create_remote(&remote_name, "local", params)
+        .create_remote(&remote_name, "alias", params)
         .await
         .unwrap();
 
@@ -170,9 +170,9 @@ async fn test_flow_copy_modal_with_existing_file() {
     fs::write(test_dir.join("source.txt"), "original").unwrap();
 
     let mut params = HashMap::new();
-    params.insert("path".to_string(), test_dir.to_string_lossy().to_string());
+    params.insert("remote".to_string(), test_dir.to_string_lossy().to_string());
     client
-        .create_remote(&remote_name, "local", params)
+        .create_remote(&remote_name, "alias", params)
         .await
         .unwrap();
 

@@ -13,9 +13,9 @@ async fn test_flow_mkdir_via_modal() {
     let remote_name = unique_remote_name("flow_mkdir");
 
     let mut params = HashMap::new();
-    params.insert("path".to_string(), test_dir.to_string_lossy().to_string());
+    params.insert("remote".to_string(), test_dir.to_string_lossy().to_string());
     client
-        .create_remote(&remote_name, "local", params)
+        .create_remote(&remote_name, "alias", params)
         .await
         .unwrap();
 
@@ -62,9 +62,9 @@ async fn test_flow_delete_file_via_modal() {
     fs::write(test_dir.join("to_delete.txt"), "delete me").unwrap();
 
     let mut params = HashMap::new();
-    params.insert("path".to_string(), test_dir.to_string_lossy().to_string());
+    params.insert("remote".to_string(), test_dir.to_string_lossy().to_string());
     client
-        .create_remote(&remote_name, "local", params)
+        .create_remote(&remote_name, "alias", params)
         .await
         .unwrap();
 
@@ -107,9 +107,9 @@ async fn test_flow_copy_file_via_modal() {
     fs::write(test_dir.join("source.txt"), "copy me").unwrap();
 
     let mut params = HashMap::new();
-    params.insert("path".to_string(), test_dir.to_string_lossy().to_string());
+    params.insert("remote".to_string(), test_dir.to_string_lossy().to_string());
     client
-        .create_remote(&remote_name, "local", params)
+        .create_remote(&remote_name, "alias", params)
         .await
         .unwrap();
 
@@ -159,9 +159,9 @@ async fn test_flow_move_file_via_modal() {
     fs::write(test_dir.join("source.txt"), "move me").unwrap();
 
     let mut params = HashMap::new();
-    params.insert("path".to_string(), test_dir.to_string_lossy().to_string());
+    params.insert("remote".to_string(), test_dir.to_string_lossy().to_string());
     client
-        .create_remote(&remote_name, "local", params)
+        .create_remote(&remote_name, "alias", params)
         .await
         .unwrap();
 
@@ -208,9 +208,9 @@ async fn test_flow_purge_directory_via_modal() {
     fs::write(test_dir.join("to_purge/file.txt"), "content").unwrap();
 
     let mut params = HashMap::new();
-    params.insert("path".to_string(), test_dir.to_string_lossy().to_string());
+    params.insert("remote".to_string(), test_dir.to_string_lossy().to_string());
     client
-        .create_remote(&remote_name, "local", params)
+        .create_remote(&remote_name, "alias", params)
         .await
         .unwrap();
 
@@ -251,9 +251,9 @@ async fn test_flow_multiple_operations() {
     let remote_name = unique_remote_name("flow_multi");
 
     let mut params = HashMap::new();
-    params.insert("path".to_string(), test_dir.to_string_lossy().to_string());
+    params.insert("remote".to_string(), test_dir.to_string_lossy().to_string());
     client
-        .create_remote(&remote_name, "local", params)
+        .create_remote(&remote_name, "alias", params)
         .await
         .unwrap();
 
