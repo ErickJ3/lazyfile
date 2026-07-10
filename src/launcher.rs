@@ -4,8 +4,7 @@ use crate::app::{App, Handler};
 use crate::error::Result;
 use crate::ui::Layout;
 use crossterm::event::{self, Event};
-use ratatui::DefaultTerminal;
-use ratatui::prelude::*;
+use ratatui::{DefaultTerminal, Frame};
 
 /// Main
 async fn run_app(terminal: &mut DefaultTerminal, app: &mut App) -> Result<()> {
@@ -53,19 +52,18 @@ fn ui_render(f: &mut Frame, app: &App) {
         app.connected,
     );
 
-    // Render file operations modal if open
-    if let Some(ref modal) = app.file_operations_modal {
-        crate::ui::FileOperationsWidget::render(f, f.area(), modal);
-    }
-
-    // Render confirmation modal if open
-    if let Some(ref modal) = app.confirm_modal {
-        crate::ui::ConfirmWidget::render(f, f.area(), modal);
-    }
-
-    // Render create/edit modal if open
-    if let Some(ref modal) = app.create_remote_modal {
-        crate::ui::CreateRemoteWidget::render(f, f.area(), modal);
+    if let Some(ref modal) = app.modal {
+        match modal {
+            crate::app::ActiveModal::FileOperation(m) => {
+                crate::ui::FileOperationsWidget::render(f, f.area(), m);
+            }
+            crate::app::ActiveModal::ConfirmDeleteRemote { modal: m, .. } => {
+                crate::ui::ConfirmWidget::render(f, f.area(), m);
+            }
+            crate::app::ActiveModal::CreateRemote(m) => {
+                crate::ui::CreateRemoteWidget::render(f, f.area(), m);
+            }
+        }
     }
 }
 

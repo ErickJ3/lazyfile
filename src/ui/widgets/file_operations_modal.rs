@@ -1,7 +1,9 @@
 //! File operations modal widget.
 
 use ratatui::{
-    prelude::*,
+    Frame,
+    layout::{Constraint, Direction, Layout, Rect},
+    style::{Color, Style},
     widgets::{Block, Borders, Clear, Paragraph},
 };
 

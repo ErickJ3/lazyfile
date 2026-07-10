@@ -33,7 +33,7 @@ async fn test_flow_cancel_modal_with_escape() {
     Handler::handle_key(&mut app, create_key_event(KeyCode::Char('n')))
         .await
         .unwrap();
-    assert!(app.file_operations_modal.is_some());
+    assert!(app.file_operations_modal().is_some());
 
     for c in "test".chars() {
         Handler::handle_key(&mut app, create_key_event(KeyCode::Char(c)))
@@ -45,7 +45,7 @@ async fn test_flow_cancel_modal_with_escape() {
         .await
         .unwrap();
 
-    assert!(app.file_operations_modal.is_none());
+    assert!(app.file_operations_modal().is_none());
     assert!(!test_dir.join("test").exists());
 
     client.delete_remote(&remote_name).await.unwrap();
@@ -84,8 +84,8 @@ async fn test_flow_modal_validation_error() {
         .await
         .unwrap();
 
-    assert!(app.file_operations_modal.is_some());
-    let modal = app.file_operations_modal.as_ref().unwrap();
+    assert!(app.file_operations_modal().is_some());
+    let modal = app.file_operations_modal().unwrap();
     assert!(modal.error.is_some());
 
     for c in "valid_dir".chars() {
@@ -97,7 +97,7 @@ async fn test_flow_modal_validation_error() {
         .await
         .unwrap();
 
-    assert!(app.file_operations_modal.is_none());
+    assert!(app.file_operations_modal().is_none());
     assert!(test_dir.join("valid_dir").exists());
 
     client.delete_remote(&remote_name).await.unwrap();
@@ -190,9 +190,9 @@ async fn test_flow_copy_modal_with_existing_file() {
     Handler::handle_key(&mut app, create_key_event(KeyCode::Char('c')))
         .await
         .unwrap();
-    assert!(app.file_operations_modal.is_some());
+    assert!(app.file_operations_modal().is_some());
 
-    let modal = app.file_operations_modal.as_ref().unwrap();
+    let modal = app.file_operations_modal().unwrap();
     assert_eq!(modal.file_name, "source.txt");
 
     Handler::handle_key(&mut app, create_key_event(KeyCode::Esc))

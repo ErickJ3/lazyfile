@@ -2,7 +2,8 @@
 
 use crate::ui::styles;
 use ratatui::{
-    prelude::*,
+    Frame,
+    layout::Rect,
     widgets::{Block, Borders, List, ListItem},
 };
 

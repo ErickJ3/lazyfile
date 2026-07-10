@@ -4,4 +4,4 @@ pub mod handler;
 pub mod state;
 
 pub use handler::Handler;
-pub use state::{App, Panel};
+pub use state::{ActiveModal, App, Panel};
